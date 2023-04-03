@@ -1,0 +1,13 @@
+name = "CAMMS"
+uuid = "bb0db068-5fd7-4fec-b7aa-467cc8d3ff01"
+authors = ["Francesc Turon <fturon@cimne.upc.edu>"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.8.3"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
