@@ -80,8 +80,7 @@ matFlag = ["top", "mid", "low"]
 tags = get_tags(matFlag, labels, dimens)
 
 CTs = hcat(ct1, ct2, ct1) # Posem un sobre els altres [[CT₁],
-                          #                            [CT₂],
-                          #                            [CT₁]]
+                          #                            [CT₂]]
 
 CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
@@ -89,7 +88,7 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 #--------------------------------------------------
 
 
-a(u,v) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+a(u,v) = ∫( ∂(v) ⊙ (σ(CTf[1], ∂(u))) )*dΩ
 l(v)   = 0
 
 
@@ -106,4 +105,5 @@ uh = solve(op)
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>uh,
                      "ε"=>∂(uh),
-                     "σ"=>σ(CTf[1],∂(uh))])
+                     "σ"=>σ(CTf, ∂(uh))])
+

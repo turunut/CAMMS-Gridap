@@ -47,28 +47,26 @@ ct2 = modModel.computeCT(MT, CT2)
 #--------------------------------------------------
 
 
-reffe = ReferenceFE(lagrangian,VectorValue{1,Float64},order)
-Vv = TestFESpace(model,reffe;
-                 conformity=:H1,
-                 dirichlet_tags=["tag_1", "tag_2"],
-                 dirichlet_masks=[(true), (true)])
-Vw = TestFESpace(model,reffe;
-                 conformity=:H1,
-                 dirichlet_tags=["tag_1", "tag_2"],
-                 dirichlet_masks=[(true), (true)])
-Vt = TestFESpace(model,reffe;
-                 conformity=:H1,
-                 dirichlet_tags=["tag_1", "tag_2"],
-                 dirichlet_masks=[(true), (false)])
-V = MultiFieldFESpace([Vv,Vw,Vt])
+reffe2 = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
+reffe1 = ReferenceFE(lagrangian,VectorValue{1,Float64},order)
+Vv2 = TestFESpace(model,reffe;
+                  conformity=:H1,
+                  dirichlet_tags=["tag_1", "tag_2"],
+                  dirichlet_masks=[(true), (true)])
+Vt1 = TestFESpace(model,reffe;
+                  conformity=:H1,
+                  dirichlet_tags=["tag_1", "tag_2"],
+                  dirichlet_masks=[(true), (false)])
+V = MultiFieldFESpace([Vv,Vt])
 
-g0(x) = VectorValue(  0.0)
-g1(x) = VectorValue(-10.0)
+g0_1(x) = VectorValue(  0.0)
+g1_1(x) = VectorValue(-10.0)
+g0_2(x) = VectorValue(0.0, 0.0)
+g1_2(x) = VectorValue(0.0,-10.0)
 
-Uv = TrialFESpace(Vv, [g0,g0])
-Uw = TrialFESpace(Vw, [g0,g1])
-Ut = TrialFESpace(Vt, [g0,g0])
-U = MultiFieldFESpace([Uv,Uw,Ut])
+Uv = TrialFESpace(Vv, [g0_2,g0_2])
+Ut = TrialFESpace(Vt, [g0_1,g0_1])
+U = MultiFieldFESpace([Uv,Ut])
 
 
 #--------------------------------------------------
@@ -85,7 +83,7 @@ dΩ = Measure(Ω,degree)
 
 
 dimens  = 1 # linies
-matFlag = []
+matFlag = ["top", "mid", "low"]
 
 tags = get_tags(matFlag, labels, dimens)
 
@@ -98,11 +96,27 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 #--------------------------------------------------
 
 
-a((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
-                     ∫( ∂(v)⊙σ(CTf[2],∂(u)) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-                     ∫( γ(MT,w,t) ⊙ τ(CTf[4], γ(MT,ω,θ)) )*dΩ        # Shear
+function my_tangent(m)
+    t = m(VectorValue(1.0)) - m(VectorValue(0.0))
+    return t/norm(t)
+end
 
-l((v,w,t)) = 0
+function get_tangent_vector(Ω::Triangulation{1})
+    cmaps = get_cell_map(Ω)
+    CellField(lazy_map(my_tangent,cmaps),Ω)
+end
+
+tangent_cf = get_tangent_vector(Ω)
+
+function g2l(u::CellField)
+    return
+end
+
+a((u,θ),(v,t)) = ∫( ∂(g2l(v))⊙σ(CTf[1],∂(g2l(u))) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( ∂(g2l(v))⊙σ(CTf[2],∂(g2l(u))) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
+                 ∫( γ(MT,g2l(v),t) ⊙ σ(CTf[4], γ(MT,g2l(u),θ)) )*dΩ        # Shear
+
+l((v,t)) = 0
 
 
 #--------------------------------------------------

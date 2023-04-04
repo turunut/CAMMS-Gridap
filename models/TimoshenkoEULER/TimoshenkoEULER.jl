@@ -98,9 +98,9 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
 MTm = PlaneStress()
 
-a((ω,θ,ϙ),(w,t,q)) = ∫( εₘ(t)⊙σₘ(MTm,CTf[3],εₘ(θ)) )*dΩ                                 - ∫(     t⊙σₘ(MTm,CTf[4],ϙ) )*dΩ +
+a((ω,θ,ϙ),(w,t,q)) = ∫( ε(t)⊙σ(CTf[3],εₘ(θ)) )*dΩ                                 - ∫(     t⊙σₘ(MTm,CTf[4],ϙ) )*dΩ +
                                                                                          ∫( εₘ(w)⊙σₘ(MTm,CTf[4],ϙ) )*dΩ -
-                     ∫(     q⊙σₘ(MTm,CTf[4],θ)     )*dΩ + ∫( q⊙σₘ(MTm,CTf[4],εₘ(ω)) )*dΩ
+                     ∫(    q⊙σ(CTf[4],θ)     )*dΩ + ∫( q⊙σ(MTm,CTf[4],εₘ(ω)) )*dΩ
 
 l((w,t,q)) = 0
 

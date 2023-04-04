@@ -17,12 +17,12 @@ using modSubroutines
 using Gridap.TensorValues
 using Gridap.Arrays
 
-prblName = "Timoshenko"
+prblName = "Reissner"
 projFldr = pwd()
 
-n = 10
-domain = (0,2000)
-partition = (n)
+n = 100
+domain = (0,100,0,100)
+partition = (n,n)
 model = CartesianDiscreteModel(domain,partition)
 
 order = 1
@@ -30,12 +30,14 @@ order = 1
 #writevtk(model,"model")
 
 labels = get_face_labeling(model)
+add_tag_from_tags!(labels,"diri_l",[7, 1, 3]) # left  edge
+add_tag_from_tags!(labels,"diri_r",[4]) # right edge
 
 
 #--------------------------------------------------
 
 
-MT = Timoshenko(1.0, 50.0, -50.0)
+MT = Reissner(50.0, -50.0)
 
 CT1 = CT_Isotrop(72400, 0.3)
 ct1 = modModel.computeCT(MT, CT1)
@@ -47,27 +49,30 @@ ct2 = modModel.computeCT(MT, CT2)
 #--------------------------------------------------
 
 
-reffe = ReferenceFE(lagrangian,VectorValue{1,Float64},order)
-Vv = TestFESpace(model,reffe;
+reffe2 = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
+reffe1 = ReferenceFE(lagrangian,VectorValue{1,Float64},order)
+Vv = TestFESpace(model,reffe2;
                  conformity=:H1,
-                 dirichlet_tags=["tag_1", "tag_2"],
-                 dirichlet_masks=[(true), (true)])
-Vw = TestFESpace(model,reffe;
+                 dirichlet_tags=["diri_l"],
+                 dirichlet_masks=[(true,true)])
+Vw = TestFESpace(model,reffe1;
                  conformity=:H1,
-                 dirichlet_tags=["tag_1", "tag_2"],
-                 dirichlet_masks=[(true), (true)])
-Vt = TestFESpace(model,reffe;
+                 dirichlet_tags=["diri_l","diri_r"],
+                 dirichlet_masks=[(true),(true)])
+Vt = TestFESpace(model,reffe2;
                  conformity=:H1,
-                 dirichlet_tags=["tag_1", "tag_2"],
-                 dirichlet_masks=[(true), (false)])
+                 dirichlet_tags=["diri_l"],
+                 dirichlet_masks=[(true,true)])
 V = MultiFieldFESpace([Vv,Vw,Vt])
 
-g0(x) = VectorValue(  0.0)
-g1(x) = VectorValue(-10.0)
+g0_1(x) = VectorValue(  0.0)
+g1_1(x) = VectorValue(-10.0)
+g0_2(x) = VectorValue(  0.0, 0.0)
+g1_2(x) = VectorValue(-10.0, 0.0)
 
-Uv = TrialFESpace(Vv, [g0,g0])
-Uw = TrialFESpace(Vw, [g0,g1])
-Ut = TrialFESpace(Vt, [g0,g0])
+Uv = TrialFESpace(Vv, [g0_2])
+Uw = TrialFESpace(Vw, [g0_1,g1_1])
+Ut = TrialFESpace(Vt, [g0_2])
 U = MultiFieldFESpace([Uv,Uw,Ut])
 
 
@@ -84,7 +89,7 @@ dΩ = Measure(Ω,degree)
 #--------------------------------------------------
 
 
-dimens  = 1 # linies
+dimens  = 2 # surfaces
 matFlag = []
 
 tags = get_tags(matFlag, labels, dimens)
@@ -121,7 +126,7 @@ th = uh.single_fe_functions[3]
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u" =>vh,
                      "ω" =>wh,
-                     "θ" =>th,
-                     "∂ω"=>∂(wh), # "∂ω"=>ε(wh)⋅VectorValue(1.0),
-                     "γ" =>γ(MT,wh,th)])
+                     "θ" =>th])
+                     #"∂ω"=>∂(wh)]) # "∂ω"=>ε(wh)⋅VectorValue(1.0),
+                     #"γ" =>γ(MT,wh,th)])
 
