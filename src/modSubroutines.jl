@@ -1,7 +1,11 @@
 module modSubroutines
-  export get_tags
+  export get_tags, get_E_CellField
 
   using Gridap.Geometry
+  using Gridap.Arrays
+  using Gridap.Fields
+  using Gridap.CellData
+  using modCT
 
   function get_tags(matFlag, labels, dimens)
     tags = copy(get_face_tag(labels,dimens))
@@ -14,6 +18,15 @@ module modSubroutines
       tags .= 1
     end
     return tags
+  end
+
+  function get_E_CellField(listCTs, tags, Ω::Triangulation)
+    listEs = Vector{Float64}()
+    for ct in listCTs
+      push!(listEs, getE(ct, [1.0, 0.0, 0.0]))
+    end
+    cts = CompressedArray(listEs, tags)
+    return CellField(cts,Ω)
   end
 
 end

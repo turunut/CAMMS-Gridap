@@ -20,14 +20,10 @@ using Gridap.Arrays
 prblName = "PlaneStress_BiMaterial"
 projFldr = pwd()
 
-#n = 10
-#domain = (0,1,0,1)
-#partition = (n,n)
-#model = CartesianDiscreteModel(domain,partition)
-
 model = GmshDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName*".msh" )
 
-order = 1
+order  = 1
+degree = 2*order
 
 #writevtk(model,"model")
 
@@ -64,7 +60,6 @@ U = TrialFESpace(V0,[g1,g1,g2,g2])
 #--------------------------------------------------
 
 
-degree = 2*order
 # Definim l'integration mesh
 Ω = Triangulation(model)
 # Contruim el l'espai de mesura de Lebesgues de ordre "degree"

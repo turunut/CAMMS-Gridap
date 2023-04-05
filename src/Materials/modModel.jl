@@ -1,6 +1,6 @@
 module modModel
   export Model, PlaneStress, Timoshenko, Reissner
-  export computeCT, ∂, σ, γ, τ
+  export computeCT, ∂, σ, γ, τ, toten, tovec
   export get_CT_CellField
 
   using modCT
@@ -63,24 +63,23 @@ module modModel
     return ct ⊙ ϵ
   end
   
-  tau(ct,ε) = ct⋅ε
   function τ(ct::CellField, ϵ::CellField)
-    return tau∘(ct,ϵ)
+    return ∘(ct⋅ϵ)
   end
 
   function ∂(u::CellField)
     return ε(u)
   end
 
-  #tosym_op(θ) = SymTensorValue(θ[1])
-  #tosym(θ::CellField) = Operation(tosym_op)(θ)
-  #function γ(mod::Timoshenko, ω::CellField, θ::CellField)
-  #  return ∂(ω) + tosym(θ)
-  #end
+  toten_op(a) = TensorValue(a[1])
+  toten(a::CellField) = Operation(toten_op)(a)
+  tovec_op(a) = VectorValue(a[1])
+  tovec(a::CellField) = Operation(tovec_op)(a)
+
 
   γ_op_TB(∂ω, θ) = VectorValue(∂ω[1] - θ[1])
   function γ(mod::Timoshenko, ω::CellField, θ::CellField)
-    return Operation(γ_op_TB)(gradient(ω), θ)             # ∂(ω) + tosym(θ)
+    return Operation(γ_op_TB)(gradient(ω), θ)
   end
 
   γ_op_RS(∂ω, θ) = VectorValue(∂ω[1] - θ[1], ∂ω[2] - θ[2])

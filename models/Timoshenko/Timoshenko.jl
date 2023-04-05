@@ -20,7 +20,7 @@ using Gridap.Arrays
 prblName = "Timoshenko"
 projFldr = pwd()
 
-n = 10
+n = 50
 domain = (0,2000)
 partition = (n)
 model = CartesianDiscreteModel(domain,partition)

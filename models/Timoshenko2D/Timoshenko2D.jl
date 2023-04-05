@@ -49,14 +49,14 @@ ct2 = modModel.computeCT(MT, CT2)
 
 reffe2 = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
 reffe1 = ReferenceFE(lagrangian,VectorValue{1,Float64},order)
-Vv2 = TestFESpace(model,reffe;
-                  conformity=:H1,
-                  dirichlet_tags=["tag_1", "tag_2"],
-                  dirichlet_masks=[(true), (true)])
-Vt1 = TestFESpace(model,reffe;
-                  conformity=:H1,
-                  dirichlet_tags=["tag_1", "tag_2"],
-                  dirichlet_masks=[(true), (false)])
+Vv = TestFESpace(model,reffe2;
+                 conformity=:H1,
+                 dirichlet_tags=["tag_1", "tag_2"],
+                 dirichlet_masks=[(true,true), (true,true)])
+Vt = TestFESpace(model,reffe1;
+                 conformity=:H1,
+                 dirichlet_tags=["tag_1", "tag_2"],
+                 dirichlet_masks=[(true), (false)])
 V = MultiFieldFESpace([Vv,Vt])
 
 g0_1(x) = VectorValue(  0.0)
@@ -65,7 +65,7 @@ g0_2(x) = VectorValue(0.0, 0.0)
 g1_2(x) = VectorValue(0.0,-10.0)
 
 Uv = TrialFESpace(Vv, [g0_2,g0_2])
-Ut = TrialFESpace(Vt, [g0_1,g0_1])
+Ut = TrialFESpace(Vt, [g0_1,g1_1])
 U = MultiFieldFESpace([Uv,Ut])
 
 
@@ -83,7 +83,7 @@ dΩ = Measure(Ω,degree)
 
 
 dimens  = 1 # linies
-matFlag = ["top", "mid", "low"]
+matFlag = []
 
 tags = get_tags(matFlag, labels, dimens)
 

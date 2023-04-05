@@ -2,7 +2,8 @@ module modCT
   export CT, CT_Isotrop, CT_Orthotrop
   export compute1D, compute2D, compute3D,
          compute1DoutPlane,
-         compute2DoutPlane
+         compute2DoutPlane,
+         getE
   
   using Gridap.TensorValues
   
@@ -101,6 +102,10 @@ module modCT
     Sarray[5,5] =       1/ct.G13
     Sarray[6,6] =       1/ct.G23
     return inv(Sarray)
+  end
+
+  function getE(ct::CT_Isotrop, flag::Vector{Float64})
+    return ct.E
   end
 
 end
