@@ -27,13 +27,21 @@ projFldr = pwd()
 
 #https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
 
-nodes = [VectorValue( 0.0, 0.0),
-         VectorValue( 0.0, 1.0),
-         VectorValue( 1.0, 1.0)]
-c2n_map = Table([1,2,
-                 2,3],[1,3,5])
+rot = 0.523599
 
-cell_type = Int8[1,1]
+nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
+         VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
+         VectorValue( 20.0*1.25*cos(rot), 20.0*1.25*sin(rot)),
+         VectorValue( 30.0*1.25*cos(rot), 30.0*1.25*sin(rot)),
+         VectorValue( 40.0*1.25*cos(rot), 40.0*1.25*sin(rot)),
+         VectorValue( 50.0*1.25*cos(rot), 50.0*1.25*sin(rot)),
+         VectorValue( 60.0*1.25*cos(rot), 60.0*1.25*sin(rot)),
+         VectorValue( 70.0*1.25*cos(rot), 70.0*1.25*sin(rot)),
+         VectorValue( 80.0*1.25*cos(rot), 80.0*1.25*sin(rot))]
+c2n_map = Table([1,2, 2,3, 3,4, 4,5, 5,6, 6,7, 7,8, 8,9],
+                [1,   3,   5,   7,   9,   11,  13,  15,17])
+
+cell_type = Int8[1,1,1,1,1,1,1,1]
 polys = [SEGMENT]
 reffes = map(p->LagrangianRefFE(Float64,p,1),polys)
 orientation = NonOriented()
@@ -44,7 +52,7 @@ grid   = UnstructuredGrid(nodes,c2n_map,reffes,cell_type,orientation)
 #d_to_num_dfaces_to_entity = [[1,3,3,3,2],[3,3,3,3,3]]
 #tag_to_name   = ["interior","boundary","bc1","bc2"]
 #tag_to_entity = [[3],[1,2],[1],[2]]
-d_to_dface_to_entity = [[1,3,2],[3,3]] # nodes edges
+d_to_dface_to_entity = [[1,3,3,3,3,3,3,3,2],[3,3,3,3,3,3,3,3]] # nodes edges
 tag_to_entities = [[3],[1,2],[1],[2]]
 tag_to_name     = ["interior","boundary","bc1","bc2"]
 
@@ -101,7 +109,7 @@ V = MultiFieldFESpace([Vv,Vt])
 g0_1(x) = VectorValue(  0.0)
 g1_1(x) = VectorValue(-10.0)
 g0_2(x) = VectorValue(0.0, 0.0)
-g1_2(x) = VectorValue(0.1, 0.0)
+g1_2(x) = VectorValue(0.0,-1.0)
 
 Uv = TrialFESpace(Vv, [g0_2,g1_2])
 Ut = TrialFESpace(Vt, [g0_1,g0_1])
@@ -126,8 +134,7 @@ matFlag = []
 
 tags = get_tags(matFlag, labels, dimens)
 
-CTs = hcat(ct1, ct2) # Posem un sobre els altres [[A₁,B₁,D₁,S₁],
-                     #                            [A₂,B₂,D₂,S₂]]
+CTs = hcat(ct1)
 
 CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
@@ -136,24 +143,38 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
 
 function my_rotations(m)
-    t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
-    t = t/norm(t)
-    L = TensorValue([ t[1] t[2];
-                     -t[2] t[1] ]) # lᵀ=l⁻¹
-    return L
+  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
+  t = t/norm(t)
+  L = TensorValue([ t[1] t[2];
+                   -t[2] t[1] ]) # lᵀ=l⁻¹
+  return L
 end
 
 function my_tangent(m)
-    t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
-    return t/norm(t)
+  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
+  return t/norm(t)
+end
+#function my_normal(m)
+#  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
+#  t = t/norm(t)
+#  return VectorValue( -t[2], t[1] )
+#end
+function my_normal(m)
+  t = my_tangent(m)
+  return TensorValue([0.0 -1.0; 1.0 0.0])⋅t
 end
 
 function get_tangent_vector(Ω::Triangulation{1})
     cmaps = get_cell_map(Ω)
     return CellField(lazy_map(my_tangent,cmaps),Ω)
 end
+function get_normal_vector(Ω::Triangulation{1})
+    cmaps = get_cell_map(Ω)
+    return CellField(lazy_map(my_normal,cmaps),Ω)
+end
 
 tf = get_tangent_vector(Ω)
+nf = get_normal_vector(Ω)
 
 #getL_op(tf) = TensorValue([ tf[1] -tf[2];
 #                            tf[2]  tf[1] ])
@@ -167,12 +188,12 @@ get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
 get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
 
 g2l₁(u,tf) = get₁ ∘ (∇(u) ⋅ tf)
-g2l₂(u,tf) = get₂ ∘ (∇(u) ⋅ tf)
+g2l₂(u,nf) = get₁ ∘ (∇(u) ⋅ nf)
 g2l(θ) = VectorValue(1.0,1.0) ⋅ (∇(θ))
 
 a((u,θ),(v,t)) = ∫( g2l₁(v,tf)⊙σₑ(CTf[1],g2l₁(u,tf)) + g2l(t)⊙σₑ(CTf[2],g2l(θ)) )*dΩ + # Axial         + Axial/Bending
                  ∫( g2l₁(v,tf)⊙σₑ(CTf[2],g2l₁(u,tf)) + g2l(t)⊙σₑ(CTf[3],g2l(θ)) )*dΩ + # Bending/Axial + Bending
-                 ∫( γ(MT,g2l₂(v,tf),t) ⊙ σₑ(CTf[4], γ(MT,g2l₂(u,tf),θ)) )*dΩ 
+                 ∫( γ(MT,g2l₂(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,g2l₂(u,nf),θ)) )*dΩ 
 
 l((v,t)) = 0
 
@@ -197,23 +218,23 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 #----------------------------------
 
 
-A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σₑ(CTf[1],∂(u)) )*dΩ
+A((u,θ),(v,t)) = ∫( g2l₁(v,tf)⊙σₑ(CTf[1],g2l₁(u,tf)) + g2l(t)⊙σₑ(CTf[2],g2l(θ)) )*dΩ
 
-D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σₑ(CTf[3],∂(θ)) )*dΩ
+D((u,θ),(v,t)) = ∫( g2l₁(v,tf)⊙σₑ(CTf[2],g2l₁(u,tf)) + g2l(t)⊙σₑ(CTf[3],g2l(θ)) )*dΩ
 
-S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ 
+S((u,θ),(v,t)) = ∫( γ(MT,g2l₂(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,g2l₂(u,nf),θ)) )*dΩ
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)
 contrA = A(UU,VV)
-elementA = first(contrA.dict).second[1][3,3]
+elementA = first(contrA.dict).second[1]
 contrD = D(UU,VV)
-elementD = first(contrD.dict).second[1][3,3]
+elementD = first(contrD.dict).second[1]
 contrS = S(UU,VV)
-elementS = first(contrS.dict).second[1][3,3]
+elementS = first(contrS.dict).second[1]
 
 contr = a(UU,VV)
-element = first(contr.dict).second[1][3,3]
+element = first(contr.dict).second[1]
 
 
 
