@@ -17,7 +17,7 @@ using modSubroutines
 using Gridap.TensorValues
 using Gridap.Arrays
 
-prblName = "Timoshenko"
+prblName = "TimoshenkoLayout"
 projFldr = pwd()
 
 n = 8
@@ -36,13 +36,15 @@ labels = get_face_labeling(model)
 #--------------------------------------------------
 
 
-MT = Timoshenko(1.0, 5.0, -5.0)
-
 CT1 = CT_Isotrop(72000, 0.3)
-ct1 = modModel.computeCT(MT, CT1)
-
 CT2 = CT_Isotrop(7200, 0.3)
-ct2 = modModel.computeCT(MT, CT2)
+
+Lay1 = Timoshenko(1.0, 5.0, -5.0)
+Lay2 = Timoshenko(1.0, 5.0, -5.0)
+Lay3 = Timoshenko(1.0, 5.0, -5.0)
+
+MT = TimoshenkoLayout([Lay1, Lay2, Lay3], [CT1, CT2, CT1])
+ct = modModel.computeCT(MT)
 
 
 #--------------------------------------------------
@@ -98,9 +100,9 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 #--------------------------------------------------
 
 
-a((u,ω,θ),(v,w,t)) = ∫( ∂(v) ⊙ σₑ(CTf[1],∂(u)) + ∂(t) ⊙ σₑ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
-                     ∫( ∂(v) ⊙ σₑ(CTf[2],∂(u)) + ∂(t) ⊙ σₑ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-                     ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ        # Shear
+a((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
+                     ∫( ∂(v)⊙σ(CTf[2],∂(u)) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
+                     ∫( γ(MT,w,t) ⊙ τ(CTf[4], γ(MT,ω,θ)) )*dΩ        # Shear
 
 l((v,w,t)) = 0
 

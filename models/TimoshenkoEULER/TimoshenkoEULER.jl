@@ -20,12 +20,13 @@ using Gridap.Arrays
 prblName = "TimoshenkoEULER"
 projFldr = pwd()
 
-n = 50
-domain = (0,2000)
+n = 8
+domain = (0,100)
 partition = (n)
 model = CartesianDiscreteModel(domain,partition)
 
 order = 1
+degree = 2*order
 
 #writevtk(model,"model")
 
@@ -34,9 +35,9 @@ labels = get_face_labeling(model)
 
 #--------------------------------------------------
 
-MT = Timoshenko(1.0, 50.0, -50.0)
+MT = Timoshenko(1.0, 5.0, -5.0)
 
-CT1 = CT_Isotrop(72400, 0.3)
+CT1 = CT_Isotrop(72000, 0.3)
 ct1 = modModel.computeCT(MT, CT1)
 
 CT2 = CT_Isotrop(7240, 0.3)
@@ -60,8 +61,8 @@ reffe_q = ReferenceFE(lagrangian,VectorValue{1,Float64},0)
 Vq = TestFESpace(model,reffe_q,conformity=:L2)
 V = MultiFieldFESpace([Vw,Vt,Vq])
 
-g0(x) = VectorValue(  0.0)
-g1(x) = VectorValue(-10.0)
+g0(x) = VectorValue( 0.0)
+g1(x) = VectorValue(-1.0)
 
 Uw = TrialFESpace(Vw, [g0,g1])
 Ut = TrialFESpace(Vt, [g0,g0])
@@ -72,7 +73,6 @@ U = MultiFieldFESpace([Uw,Ut,Uq])
 #--------------------------------------------------
 
 
-degree = 1*order
 # Definim l'integration mesh
 Ω = Triangulation(model)
 # Contruim el l'espai de mesura de Lebesgues de ordre "degree"

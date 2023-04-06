@@ -20,12 +20,13 @@ using Gridap.Arrays
 prblName = "Reissner"
 projFldr = pwd()
 
-n = 100
+n = 10
 domain = (0,100,0,100)
 partition = (n,n)
 model = CartesianDiscreteModel(domain,partition)
 
 order = 1
+degree = 2*order
 
 #writevtk(model,"model")
 
@@ -37,9 +38,9 @@ add_tag_from_tags!(labels,"diri_r",[4]) # right edge
 #--------------------------------------------------
 
 
-MT = Reissner(50.0, -50.0)
+MT = Reissner(5.0, -5.0)
 
-CT1 = CT_Isotrop(72400, 0.3)
+CT1 = CT_Isotrop(72000, 0.3)
 ct1 = modModel.computeCT(MT, CT1)
 
 CT2 = CT_Isotrop(7240, 0.3)
@@ -65,10 +66,10 @@ Vt = TestFESpace(model,reffe2;
                  dirichlet_masks=[(true,true)])
 V = MultiFieldFESpace([Vv,Vw,Vt])
 
-g0_1(x) = VectorValue(  0.0)
-g1_1(x) = VectorValue(-10.0)
-g0_2(x) = VectorValue(  0.0, 0.0)
-g1_2(x) = VectorValue(-10.0, 0.0)
+g0_1(x) = VectorValue( 0.0)
+g1_1(x) = VectorValue(+1.0)
+g0_2(x) = VectorValue( 0.0, 0.0)
+g1_2(x) = VectorValue(+1.0, 0.0)
 
 Uv = TrialFESpace(Vv, [g0_2])
 Uw = TrialFESpace(Vw, [g0_1,g1_1])
@@ -79,7 +80,6 @@ U = MultiFieldFESpace([Uv,Uw,Ut])
 #--------------------------------------------------
 
 
-degree = 1*order
 # Definim l'integration mesh
 Ω = Triangulation(model)
 # Contruim el l'espai de mesura de Lebesgues de ordre "degree"
@@ -105,7 +105,7 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
 a((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
                      ∫( ∂(v)⊙σ(CTf[2],∂(u)) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-                     ∫( γ(MT,w,t) ⊙ τ(CTf[4], γ(MT,ω,θ)) )*dΩ        # Shear
+                     ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ        # Shear
 
 l((v,w,t)) = 0
 
@@ -129,4 +129,26 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
                      "θ" =>th])
                      #"∂ω"=>∂(wh)]) # "∂ω"=>ε(wh)⋅VectorValue(1.0),
                      #"γ" =>γ(MT,wh,th)])
+
+
+#--------------------------------------------------
+
+
+A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+
+D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ
+
+S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ 
+
+UU = get_trial_fe_basis(U)
+VV = get_fe_basis(V)
+contrA = A(UU,VV)
+elementA = first(contrA.dict).second[1][3,3]
+contrD = D(UU,VV)
+elementD = first(contrD.dict).second[1][3,3]
+contrS = S(UU,VV)
+elementS = first(contrS.dict).second[1]
+
+contr = a(UU,VV)
+element = first(contr.dict).second[1][3,3]
 
