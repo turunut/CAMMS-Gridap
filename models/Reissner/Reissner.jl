@@ -105,7 +105,7 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
 a((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
                      ∫( ∂(v)⊙σ(CTf[2],∂(u)) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-                     ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ        # Shear
+                     ∫( γ(MT,∇(w),t)⊙σₑ(CTf[4], γ(MT,∇(ω),θ)) )*dΩ        # Shear
 
 l((v,w,t)) = 0
 
@@ -138,7 +138,7 @@ A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
 D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ
 
-S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ 
+S((u,ω,θ),(v,w,t)) = ∫( γ(MT,∇(w),t)⊙σₑ(CTf[4], γ(MT,∇(ω),θ)) )*dΩ
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)

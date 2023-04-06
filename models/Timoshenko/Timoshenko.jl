@@ -5,8 +5,8 @@ Exemple Linear elastic en que generem un model cuadrat de forma
 procedural, el mallem i definim condicions de Dirichlet imposant
 desplacaments als seus extrems esquerra i dret.
 =#
-push!(LOAD_PATH, pwd()*"/src")
-push!(LOAD_PATH, pwd()*"/src/Materials")
+push!(LOAD_PATH, pwd()*"\\src")
+push!(LOAD_PATH, pwd()*"\\src\\Materials")
 
 using Gridap
 using GridapGmsh
@@ -100,7 +100,7 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
 a((u,ω,θ),(v,w,t)) = ∫( ∂(v) ⊙ σₑ(CTf[1],∂(u)) + ∂(t) ⊙ σₑ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
                      ∫( ∂(v) ⊙ σₑ(CTf[2],∂(u)) + ∂(t) ⊙ σₑ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-                     ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ        # Shear
+                     ∫( γ(MT,∇(w),t) ⊙ σₑ(CTf[4],γ(MT,∇(ω),θ)) )*dΩ        # Shear
 
 l((v,w,t)) = 0
 
@@ -128,11 +128,12 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 
 #----------------------------------
 
-A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
-D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ
+A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σₑ(CTf[1],∂(u)) )*dΩ
 
-S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ τ(CTf[4], γ(MT,ω,θ)) )*dΩ 
+D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σₑ(CTf[3],∂(θ)) )*dΩ
+
+S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ 
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)
@@ -141,7 +142,7 @@ elementA = first(contrA.dict).second[1][3,3]
 contrD = D(UU,VV)
 elementD = first(contrD.dict).second[1][3,3]
 contrS = S(UU,VV)
-elementS = first(contrS.dict).second[1]
+elementS = first(contrS.dict).second[1][3,3]
 
 contr = a(UU,VV)
 element = first(contr.dict).second[1][3,3]

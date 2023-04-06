@@ -27,8 +27,11 @@ projFldr = pwd()
 
 #https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
 
-nodes = [VectorValue(0.0,0.0),VectorValue(0.0,1.0),VectorValue(1.0,1.0)]
-c2n_map = Table([1,2,2,3],[1,3,5])
+nodes = [VectorValue( 0.0, 0.0),
+         VectorValue( 0.0, 1.0),
+         VectorValue( 1.0, 1.0)]
+c2n_map = Table([1,2,
+                 2,3],[1,3,5])
 
 cell_type = Int8[1,1]
 polys = [SEGMENT]
@@ -41,7 +44,7 @@ grid   = UnstructuredGrid(nodes,c2n_map,reffes,cell_type,orientation)
 #d_to_num_dfaces_to_entity = [[1,3,3,3,2],[3,3,3,3,3]]
 #tag_to_name   = ["interior","boundary","bc1","bc2"]
 #tag_to_entity = [[3],[1,2],[1],[2]]
-d_to_dface_to_entity = [[1,3,2],[3,3]]
+d_to_dface_to_entity = [[1,3,2],[3,3]] # nodes edges
 tag_to_entities = [[3],[1,2],[1],[2]]
 tag_to_name     = ["interior","boundary","bc1","bc2"]
 
@@ -160,35 +163,16 @@ tf = get_tangent_vector(Ω)
 #    return getL(tf)⋅u # ∘(getL(tf)⋅u)
 #end
 
-#g2l(tf,u) = ∘(tf⋅u)
 get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
 get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
-get(x)  = VectorValue(VectorValue(1.0,1.0)⋅x)
 
-function tangential_derivative(u::CellField,tf::CellField)
-  gradient(u)⋅tf
-end
+g2l₁(u,tf) = get₁ ∘ (∇(u) ⋅ tf)
+g2l₂(u,tf) = get₂ ∘ (∇(u) ⋅ tf)
+g2l(θ) = VectorValue(1.0,1.0) ⋅ (∇(θ))
 
-g2l₁(tf,u) = get₁ ∘ tangential_derivative(u,tf)
-g2l₂(tf,u) = get₂ ∘ tangential_derivative(u,tf)
-
-function tangential_derivative_1(u::CellField)
-  VectorValue(1.0,1.0)⋅u #⋅TensorValue(VectorValue(1.0,1.0))
-end
-g2l(u) = tangential_derivative_1(gradient(u)) # get ∘ 
-
-function ∂∂(u)
-  return CellField(TensorValue(0.1), Ω)
-end
-
-#a((u,θ),(v,t)) = ∫( ∂(g2l(tf,v))⊙σ(CTf[1],∂(g2l(tf,u))) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
-#                 ∫( ∂(g2l(tf,v))⊙σ(CTf[2],∂(g2l(tf,u))) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-#                 ∫( γ(MT,g2l(tf,v),t) ⊙ σ(CTf[4], γ(MT,g2l(tf,u),θ)) )*dΩ        # Shear
-
-a((u,θ),(v,t)) = ∫( g2l₁(tf,v)⊙σₑ(CTf[1],g2l₁(tf,u)) + g2l(t)⊙σₑ(CTf[2],g2l(θ)) )*dΩ + # Axial         + Axial/Bending
-                 ∫( g2l₁(tf,v)⊙σₑ(CTf[2],g2l₁(tf,u)) + g2l(t)⊙σₑ(CTf[3],g2l(θ)) )*dΩ + # Bending/Axial + Bending
-                 #∫( γ(MT,g2l₂(tf,v),t) ⊙ σₑ(CTf[4], γ(MT,g2l₂(tf,u),θ)) )*dΩ 
-                 ∫( γγ(MT,g2l₂(tf,v),t) ⊙ σₑ(CTf[4], γγ(MT,g2l₂(tf,u),θ)) )*dΩ 
+a((u,θ),(v,t)) = ∫( g2l₁(v,tf)⊙σₑ(CTf[1],g2l₁(u,tf)) + g2l(t)⊙σₑ(CTf[2],g2l(θ)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( g2l₁(v,tf)⊙σₑ(CTf[2],g2l₁(u,tf)) + g2l(t)⊙σₑ(CTf[3],g2l(θ)) )*dΩ + # Bending/Axial + Bending
+                 ∫( γ(MT,g2l₂(v,tf),t) ⊙ σₑ(CTf[4], γ(MT,g2l₂(u,tf),θ)) )*dΩ 
 
 l((v,t)) = 0
 
@@ -208,4 +192,28 @@ th = uh.single_fe_functions[2]
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u" =>vh,
                      "θ" =>th])
+
+
+#----------------------------------
+
+
+A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σₑ(CTf[1],∂(u)) )*dΩ
+
+D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σₑ(CTf[3],∂(θ)) )*dΩ
+
+S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ 
+
+UU = get_trial_fe_basis(U)
+VV = get_fe_basis(V)
+contrA = A(UU,VV)
+elementA = first(contrA.dict).second[1][3,3]
+contrD = D(UU,VV)
+elementD = first(contrD.dict).second[1][3,3]
+contrS = S(UU,VV)
+elementS = first(contrS.dict).second[1][3,3]
+
+contr = a(UU,VV)
+element = first(contr.dict).second[1][3,3]
+
+
 

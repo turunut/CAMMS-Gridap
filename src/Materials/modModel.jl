@@ -1,6 +1,6 @@
 module modModel
   export Model, Beam, Shell, PlaneStress, Solid, Timoshenko, TimoshenkoLayout, Reissner
-  export computeCT, ∂, σ, σₑ, γ, γγ, toten, tovec
+  export computeCT, ∂, σ, σₑ, γ, toten, tovec
   export get_CT_CellField
 
   using modCT
@@ -103,18 +103,18 @@ module modModel
   tovec(a::CellField) = Operation(tovec_op)(a)
 
 
-  γ_op_TB(∂ω, θ) = VectorValue(∂ω[1] - θ[1])
-  function γ(mod::Timoshenko, ω::CellField, θ::CellField)
-    return Operation(γ_op_TB)(gradient(ω), θ)
-  end
-  γ_op_TB(∂ω, θ) = VectorValue(∂ω[1] - θ[1])
-  function γγ(mod::Timoshenko, ω::CellField, θ::CellField)
-    return Operation(γ_op_TB)(ω, θ)
+  #γ_op_TB(∂ω, θ) = VectorValue(∂ω[1] - θ[1])
+  #function γ(mod::Timoshenko, ω::CellField, θ::CellField)
+  #  return Operation(γ_op_TB)(∇(ω), θ)
+  #end
+  γ_op_TB(∇ω, θ) = VectorValue(∇ω[1] - θ[1])
+  function γ(mod::Timoshenko, ∇ω::CellField, θ::CellField)
+    return Operation(γ_op_TB)(∇ω, θ)
   end
 
-  γ_op_RS(∂ω, θ) = VectorValue(∂ω[1] - θ[1], ∂ω[2] - θ[2])
-  function γ(mod::Reissner,   ω::CellField, θ::CellField)
-    return Operation(γ_op_RS)(gradient(ω), θ)             # ∂(ω) + tosym(θ)
+  γ_op_RS(∇ω, θ) = VectorValue(∇ω[1] - θ[1], ∇ω[2] - θ[2])
+  function γ(mod::Reissner,   ∇ω::CellField, θ::CellField)
+    return Operation(γ_op_RS)(∇ω, θ) # ∂(ω) + tosym(θ)
   end
 
   function get_CT_CellField(mod::Model, listCTs, tags, Ω::Triangulation)
