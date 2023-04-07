@@ -9,7 +9,8 @@ push!(LOAD_PATH, pwd()*"/src")
 push!(LOAD_PATH, pwd()*"/src/Materials")
 
 using Gridap
-using GridapGmsh
+#using GridapGmsh
+using GridapGiD
 using Gridap.Geometry
 using modCT
 using modModel
@@ -21,6 +22,7 @@ using Gridap.ReferenceFEs
 prblName = "Timoshenko2D"
 projFldr = pwd()
 
+model = GiDDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName*".msh" )
 
 #--------------------------------------------------
 
@@ -154,11 +156,6 @@ function my_tangent(m)
   t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
   return t/norm(t)
 end
-#function my_normal(m)
-#  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
-#  t = t/norm(t)
-#  return VectorValue( -t[2], t[1] )
-#end
 function my_normal(m)
   t = my_tangent(m)
   return TensorValue([0.0 -1.0; 1.0 0.0])⋅t
