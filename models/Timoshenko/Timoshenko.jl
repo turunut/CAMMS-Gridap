@@ -131,7 +131,7 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 
 A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σₑ(CTf[1],∂(u)) )*dΩ
 D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σₑ(CTf[3],∂(θ)) )*dΩ
-S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ 
+S((u,ω,θ),(v,w,t)) = ∫( γ(MT,∇(w),t) ⊙ σₑ(CTf[4],γ(MT,∇(ω),θ)) )*dΩ 
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)

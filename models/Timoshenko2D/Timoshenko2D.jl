@@ -29,7 +29,7 @@ projFldr = pwd()
 
 #https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
 
-rot = deg2rad(30.0)
+rot = deg2rad(0.0)
 
 nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
          VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
