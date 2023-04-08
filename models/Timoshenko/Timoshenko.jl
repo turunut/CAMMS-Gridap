@@ -130,20 +130,18 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 
 
 A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σₑ(CTf[1],∂(u)) )*dΩ
-
 D((u,ω,θ),(v,w,t)) = ∫( ∂(t)⊙σₑ(CTf[3],∂(θ)) )*dΩ
-
 S((u,ω,θ),(v,w,t)) = ∫( γ(MT,w,t) ⊙ σₑ(CTf[4], γ(MT,ω,θ)) )*dΩ 
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)
 contrA = A(UU,VV)
-elementA = first(contrA.dict).second[1][3,3]
+elementA = first(contrA.dict).second[1]
 contrD = D(UU,VV)
-elementD = first(contrD.dict).second[1][3,3]
+elementD = first(contrD.dict).second[1]
 contrS = S(UU,VV)
-elementS = first(contrS.dict).second[1][3,3]
+elementS = first(contrS.dict).second[1]
 
 contr = a(UU,VV)
-element = first(contr.dict).second[1][3,3]
+element = first(contr.dict).second[1]
 

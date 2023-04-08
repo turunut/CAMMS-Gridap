@@ -56,6 +56,8 @@ module modModel
     D = CT_1Dip*(1/3)*mod.b*(mod.z2^3-mod.z1^3)
     S = CT_1Dop*(1/1)*mod.b*(mod.z2^1-mod.z1^1)*(5/6)
 
+    print( [A, B, D, S] )
+
     return [A, B, D, S]
   end
 

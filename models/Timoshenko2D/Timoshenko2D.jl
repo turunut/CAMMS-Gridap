@@ -29,7 +29,7 @@ projFldr = pwd()
 
 #https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
 
-rot = deg2rad(90)
+rot = deg2rad(0.0)
 
 nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
          VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
@@ -187,16 +187,18 @@ nf = get_normal_vector(Ω)
 get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
 get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
 getₒ(x) = VectorValue(VectorValue(1.0,1.0)⋅x)
+getₙ(x) = VectorValue(norm(x))
 
-∂₁(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
-∂₂(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
+#∂₁(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
+∂₁(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
+#∂₂(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
 ∂ₒ(θ) = VectorValue(1.0,1.0) ⋅ (∇(θ))
+#∂ₒ(θ) = getₙ ∘ (∇(θ))
 
 a((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[2],∂ₒ(θ)) )*dΩ + # Axial         + Axial/Bending
                  ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[3],∂ₒ(θ)) )*dΩ + # Bending/Axial + Bending
-                 ∫( γ(MT,∂₂(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₂(u,nf),θ)) )*dΩ 
+                 ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ 
                  #∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ 
-
 
 l((v,t)) = 0
 
@@ -223,7 +225,7 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 
 A((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[2],∂ₒ(θ)) )*dΩ
 D((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[3],∂ₒ(θ)) )*dΩ
-S((u,θ),(v,t)) = ∫( γ(MT,∂₂(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₂(u,nf),θ)) )*dΩ
+S((u,θ),(v,t)) = ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)
@@ -236,6 +238,4 @@ elementS = first(contrS.dict).second[1]
 
 contr = a(UU,VV)
 element = first(contr.dict).second[1]
-
-
 
