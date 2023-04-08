@@ -19,59 +19,60 @@ using Gridap.TensorValues
 using Gridap.Arrays
 using Gridap.ReferenceFEs
 
-prblName = "Timoshenko2D"
+prblName = "Timoshenko2D_Grua"
 projFldr = pwd()
 
-#model = GiDDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName )
+model = GiDDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName )
+writevtk(model,projFldr*"/models/"*prblName*"/"*prblName)
 
 #--------------------------------------------------
 
 
 #https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
 
-rot = deg2rad(90)
-
-nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
-         VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
-         VectorValue( 20.0*1.25*cos(rot), 20.0*1.25*sin(rot)),
-         VectorValue( 30.0*1.25*cos(rot), 30.0*1.25*sin(rot)),
-         VectorValue( 40.0*1.25*cos(rot), 40.0*1.25*sin(rot)),
-         VectorValue( 50.0*1.25*cos(rot), 50.0*1.25*sin(rot)),
-         VectorValue( 60.0*1.25*cos(rot), 60.0*1.25*sin(rot)),
-         VectorValue( 70.0*1.25*cos(rot), 70.0*1.25*sin(rot)),
-         VectorValue( 80.0*1.25*cos(rot), 80.0*1.25*sin(rot))]
-c2n_map = Table([1,2, 2,3, 3,4, 4,5, 5,6, 6,7, 7,8, 8,9],
-                [1,   3,   5,   7,   9,   11,  13,  15,17])
-
-cell_type = Int8[1,1,1,1,1,1,1,1]
-polys = [SEGMENT]
-reffes = map(p->LagrangianRefFE(Float64,p,1),polys)
-orientation = NonOriented()
-
-topo = UnstructuredGridTopology(nodes,c2n_map,cell_type,polys,orientation)
-grid = UnstructuredGrid(nodes,c2n_map,reffes,cell_type,orientation)
-
-#d_to_num_dfaces_to_entity = [[1,3,3,3,2],[3,3,3,3,3]]
-#tag_to_name   = ["interior","boundary","left","right"]
-#tag_to_entity = [[3],[1,2],[1],[2]]
-#tag_to_name     = ["interior", "boundary", "left", "right"]
-#tag_to_entities = [[3],        [1,2],      [1],   [2]  ]
+#rot = 0.523599
+#
+#nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
+#         VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
+#         VectorValue( 20.0*1.25*cos(rot), 20.0*1.25*sin(rot)),
+#         VectorValue( 30.0*1.25*cos(rot), 30.0*1.25*sin(rot)),
+#         VectorValue( 40.0*1.25*cos(rot), 40.0*1.25*sin(rot)),
+#         VectorValue( 50.0*1.25*cos(rot), 50.0*1.25*sin(rot)),
+#         VectorValue( 60.0*1.25*cos(rot), 60.0*1.25*sin(rot)),
+#         VectorValue( 70.0*1.25*cos(rot), 70.0*1.25*sin(rot)),
+#         VectorValue( 80.0*1.25*cos(rot), 80.0*1.25*sin(rot))]
+#c2n_map = Table([1,2, 2,3, 3,4, 4,5, 5,6, 6,7, 7,8, 8,9],
+#                [1,   3,   5,   7,   9,   11,  13,  15,17])
+#
+#cell_type = Int8[1,1,1,1,1,1,1,1]
+#polys = [SEGMENT]
+#reffes = map(p->LagrangianRefFE(Float64,p,1),polys)
+#orientation = NonOriented()
+#
+#topo = UnstructuredGridTopology(nodes,c2n_map,cell_type,polys,orientation)
+#grid = UnstructuredGrid(nodes,c2n_map,reffes,cell_type,orientation)
+#
+##d_to_num_dfaces_to_entity = [[1,3,3,3,2],[3,3,3,3,3]]
+##tag_to_name   = ["interior","boundary","left","right"]
+##tag_to_entity = [[3],[1,2],[1],[2]]
+##tag_to_name     = ["interior", "boundary", "left", "right"]
+##tag_to_entities = [[3],        [1,2],      [1],   [2]  ]
+##d_to_dface_to_entity = [[1,3,3,3,3,3,3,3,2],[3,3,3,3,3,3,3,3]] # nodes edges
+#tag_to_name     = ["interior", "left", "right"]
+#tag_to_entities = [[3],        [1],   [2]  ]
 #d_to_dface_to_entity = [[1,3,3,3,3,3,3,3,2],[3,3,3,3,3,3,3,3]] # nodes edges
-tag_to_name     = ["interior", "left", "right"]
-tag_to_entities = [[3],        [1],   [2]  ]
-d_to_dface_to_entity = [[1,3,3,3,3,3,3,3,2],[3,3,3,3,3,3,3,3]] # nodes edges
-
-#labels = FaceLabeling(topo)
-labels = FaceLabeling(d_to_dface_to_entity, tag_to_entities, tag_to_name)
-
-model = UnstructuredDiscreteModel(grid,topo,labels)
-
-Dc = num_cell_dims(model)
-Dp = num_point_dims(model)
-
-Ω = Triangulation(model)
-
-pts = get_cell_points(Ω)
+#
+##labels = FaceLabeling(topo)
+#labels = FaceLabeling(d_to_dface_to_entity, tag_to_entities, tag_to_name)
+#
+#model = UnstructuredDiscreteModel(grid,topo,labels)
+#
+#Dc = num_cell_dims(model)
+#Dp = num_point_dims(model)
+#
+#Ω = Triangulation(model)
+#
+#pts = get_cell_points(Ω)
 
 
 #--------------------------------------------------
