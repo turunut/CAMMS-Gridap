@@ -29,7 +29,7 @@ projFldr = pwd()
 
 #https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
 
-rot = deg2rad(0.0)
+rot = deg2rad(90.0)
 
 nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
          VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
@@ -78,6 +78,7 @@ pts = get_cell_points(Ω)
 
 
 order = 1
+degree = 2*order
 
 #writevtk(model,"model")
 
@@ -124,7 +125,6 @@ U = MultiFieldFESpace([Uv,Ut])
 #--------------------------------------------------
 
 
-degree = 1*order
 # Definim l'integration mesh
 Ω = Triangulation(model)
 # Contruim el l'espai de mesura de Lebesgues de ordre "degree"
@@ -147,13 +147,13 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 #--------------------------------------------------
 
 
-function my_rotations(m)
-  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
-  t = t/norm(t)
-  L = TensorValue([ t[1] t[2];
-                   -t[2] t[1] ]) # lᵀ=l⁻¹
-  return L
-end
+#function my_rotations(m)
+#  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
+#  t = t/norm(t)
+#  L = TensorValue([ t[1] t[2];
+#                   -t[2] t[1] ]) # lᵀ=l⁻¹
+#  return L
+#end
 
 function my_tangent(m)
   t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
@@ -184,28 +184,22 @@ nf = get_normal_vector(Ω)
 #    return getL(tf)⋅u # ∘(getL(tf)⋅u)
 #end
 
-get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
-get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
-getₒ(x) = VectorValue(VectorValue(1.0,1.0)⋅x)
+#get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
+#get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
+#getₒ(x) = VectorValue(VectorValue(1.0,1.0)⋅x)
+
 getₙ(x) = VectorValue(sign(x[1])*norm(x))
 
-#∂₁(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
+#∂₁(u,êf) = get₁ ∘ (∇(u) ⋅ êf)
+#∂ₒ(θ) = VectorValue(1.0,1.0) ⋅ (∇(θ))
 ∂₁(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
-#∂₂(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
-∂ₒ(θ) = VectorValue(1.0,1.0) ⋅ (∇(θ))
 ∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
-
-op_TB(êf, θ) = VectorValue(êf[1]*θ[1], êf[2]*θ[1])
-∂ₗ(θ,êf) = getₙ ∘ Operation(op_TB)(êf, θ)
 
 a((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
                  ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
                  ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ 
-                 #∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ 
 
 l((v,t)) = 0
-
-# ARREGLAR THETA AL TALLAT
 
 
 #--------------------------------------------------
@@ -231,7 +225,6 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 A((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ
 D((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ
 S((u,θ),(v,t)) = ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ
-#S((u,θ),(v,t)) = ∫( γ(MT,∂₁(v,nf),∂ₗ(t,tf)) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),∂ₗ(θ,tf))) )*dΩ
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)

@@ -28,57 +28,8 @@ writevtk(model,projFldr*"/models/"*prblName*"/"*prblName)
 #--------------------------------------------------
 
 
-#https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
-
-#rot = 0.523599
-#
-#nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
-#         VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
-#         VectorValue( 20.0*1.25*cos(rot), 20.0*1.25*sin(rot)),
-#         VectorValue( 30.0*1.25*cos(rot), 30.0*1.25*sin(rot)),
-#         VectorValue( 40.0*1.25*cos(rot), 40.0*1.25*sin(rot)),
-#         VectorValue( 50.0*1.25*cos(rot), 50.0*1.25*sin(rot)),
-#         VectorValue( 60.0*1.25*cos(rot), 60.0*1.25*sin(rot)),
-#         VectorValue( 70.0*1.25*cos(rot), 70.0*1.25*sin(rot)),
-#         VectorValue( 80.0*1.25*cos(rot), 80.0*1.25*sin(rot))]
-#c2n_map = Table([1,2, 2,3, 3,4, 4,5, 5,6, 6,7, 7,8, 8,9],
-#                [1,   3,   5,   7,   9,   11,  13,  15,17])
-#
-#cell_type = Int8[1,1,1,1,1,1,1,1]
-#polys = [SEGMENT]
-#reffes = map(p->LagrangianRefFE(Float64,p,1),polys)
-#orientation = NonOriented()
-#
-#topo = UnstructuredGridTopology(nodes,c2n_map,cell_type,polys,orientation)
-#grid = UnstructuredGrid(nodes,c2n_map,reffes,cell_type,orientation)
-#
-##d_to_num_dfaces_to_entity = [[1,3,3,3,2],[3,3,3,3,3]]
-##tag_to_name   = ["interior","boundary","left","right"]
-##tag_to_entity = [[3],[1,2],[1],[2]]
-##tag_to_name     = ["interior", "boundary", "left", "right"]
-##tag_to_entities = [[3],        [1,2],      [1],   [2]  ]
-##d_to_dface_to_entity = [[1,3,3,3,3,3,3,3,2],[3,3,3,3,3,3,3,3]] # nodes edges
-#tag_to_name     = ["interior", "left", "right"]
-#tag_to_entities = [[3],        [1],   [2]  ]
-#d_to_dface_to_entity = [[1,3,3,3,3,3,3,3,2],[3,3,3,3,3,3,3,3]] # nodes edges
-#
-##labels = FaceLabeling(topo)
-#labels = FaceLabeling(d_to_dface_to_entity, tag_to_entities, tag_to_name)
-#
-#model = UnstructuredDiscreteModel(grid,topo,labels)
-#
-#Dc = num_cell_dims(model)
-#Dp = num_point_dims(model)
-#
-#Ω = Triangulation(model)
-#
-#pts = get_cell_points(Ω)
-
-
-#--------------------------------------------------
-
-
 order = 1
+degree = 2*order
 
 #writevtk(model,"model")
 
@@ -125,7 +76,6 @@ U = MultiFieldFESpace([Uv,Ut])
 #--------------------------------------------------
 
 
-degree = 1*order
 # Definim l'integration mesh
 Ω = Triangulation(model)
 # Contruim el l'espai de mesura de Lebesgues de ordre "degree"
@@ -148,14 +98,6 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 #--------------------------------------------------
 
 
-function my_rotations(m)
-  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
-  t = t/norm(t)
-  L = TensorValue([ t[1] t[2];
-                   -t[2] t[1] ]) # lᵀ=l⁻¹
-  return L
-end
-
 function my_tangent(m)
   t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
   return t/norm(t)
@@ -177,29 +119,14 @@ end
 tf = get_tangent_vector(Ω)
 nf = get_normal_vector(Ω)
 
-#getL_op(tf) = TensorValue([ tf[1] -tf[2];
-#                            tf[2]  tf[1] ])
-#getL(tf::CellField) = Operation(getL_op)(tf)
-#function g2l(tf, u)
-#    eval = getL(tf)⋅u
-#    return getL(tf)⋅u # ∘(getL(tf)⋅u)
-#end
+getₙ(x) = VectorValue(sign(x[1]+0.0000001)*norm(x))
 
-get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
-get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
-getₒ(x) = VectorValue(VectorValue(1.0,1.0)⋅x)
-getₙ(x) = VectorValue(norm(x))
-
-#∂₁(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
 ∂₁(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
-#∂₂(u,êf) = getₒ ∘ (∇(u) ⋅ êf)
-#∂ₒ(θ) = VectorValue(1.0,1.0) ⋅ (∇(θ))
-∂ₒ(θ) = getₙ ∘ (∇(θ))
+∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
 
-a((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[2],∂ₒ(θ)) )*dΩ + # Axial         + Axial/Bending
-                 ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[3],∂ₒ(θ)) )*dΩ + # Bending/Axial + Bending
+a((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
                  ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ 
-                 #∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ 
 
 l((v,t)) = 0
 
@@ -224,8 +151,8 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 #----------------------------------
 
 
-A((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[2],∂ₒ(θ)) )*dΩ
-D((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ₒ(t)⊙σₑ(CTf[3],∂ₒ(θ)) )*dΩ
+A((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ
+D((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ
 S((u,θ),(v,t)) = ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ
 
 UU = get_trial_fe_basis(U)
