@@ -120,8 +120,11 @@ tf = get_tangent_vector(Ω)
 nf = get_normal_vector(Ω)
 
 n0(x) = sign(sign(sign(x)+1)-0.5) # Torna 1 si el x igual o me es gran que 0, else retorna -1
-getₙ₁(x) = VectorValue( n0(x[1])*norm(x) )
-getₙ₂(x) = VectorValue( n0(x[2])*norm(x) )
+n0₂(a,b) = sign(a+b)
+signe(x,y) = (x*y)/norm(x*y)      # Torna 1 si x y tenen el mateix signe sino -1
+
+getₙ₁(x) = VectorValue( sign(sum(x))*norm(x) )
+getₙ₂(x) = VectorValue( sign(sum(x))*norm(x) )
 
 ∂₁(u,êf) = getₙ₁ ∘ (∇(u) ⋅ êf)
 ∂₂(u,êf) = getₙ₂ ∘ (∇(u) ⋅ êf)
