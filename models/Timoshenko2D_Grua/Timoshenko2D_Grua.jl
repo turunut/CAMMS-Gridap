@@ -98,6 +98,21 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 #--------------------------------------------------
 
 
+#function my_rotations(m)
+#  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
+#  t = t/norm(t)
+#  L = TensorValue([ t[1] t[2];
+#                   -t[2] t[1] ]) # lᵀ=l⁻¹
+#  return L
+#end
+#getL_op(tf) = TensorValue([ tf[1] -tf[2];
+#                            tf[2]  tf[1] ])
+#getL(tf::CellField) = Operation(getL_op)(tf)
+#function g2l(tf, u)
+#    eval = getL(tf)⋅u
+#    return getL(tf)⋅u # ∘(getL(tf)⋅u)
+#end
+
 function my_tangent(m)
   t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
   return t/norm(t)
@@ -119,20 +134,23 @@ end
 tf = get_tangent_vector(Ω)
 nf = get_normal_vector(Ω)
 
-n0(x) = sign(sign(sign(x)+1)-0.5) # Torna 1 si el x igual o me es gran que 0, else retorna -1
-n0₂(a,b) = sign(a+b)
-signe(x,y) = (x*y)/norm(x*y)      # Torna 1 si x y tenen el mateix signe sino -1
 
-getₙ₁(x) = VectorValue( sign(sum(x))*norm(x) )
-getₙ₂(x) = VectorValue( sign(sum(x))*norm(x) )
+#get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
+#get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
+#getₒ(x) = VectorValue(VectorValue(1.0,1.0)⋅x)
+#n0(x) = sign(sign(sign(x)+1)-0.5) # Torna 1 si el x igual o me es gran que 0, else retorna -1
+#n0₂(a,b) = sign(a+b)
+#signe(x,y) = (x*y)/norm(x*y)      # Torna 1 si x y tenen el mateix signe sino -1
+#getₙ₁(x) = VectorValue( sign(sum(x))*norm(x) )
+#getₙ₂(x) = VectorValue( sign(sum(x))*norm(x) )
 
-∂₁(u,êf) = getₙ₁ ∘ (∇(u) ⋅ êf)
-∂₂(u,êf) = getₙ₂ ∘ (∇(u) ⋅ êf)
+getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
+∂ₙ(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
 ∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
 
-a((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
-                 ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
-                 ∫( γ(MT,∂₂(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₂(u,nf),θ)) )*dΩ 
+a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf)⊙σₑ(CTf[1],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( ∂ₙ(v,tf)⊙σₑ(CTf[2],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
+                 ∫( γ(MT,∂ₙ(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf),θ)) )*dΩ 
 
 l((v,t)) = 0
 
@@ -157,9 +175,9 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 #----------------------------------
 
 
-A((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ
-D((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ
-S((u,θ),(v,t)) = ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ
+A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf)⊙σₑ(CTf[1],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ
+D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf)⊙σₑ(CTf[2],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ
+S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf),θ)) )*dΩ
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)

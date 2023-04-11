@@ -17,7 +17,7 @@ using modSubroutines
 using Gridap.TensorValues
 using Gridap.Arrays
 
-prblName = "Reissner"
+prblName = "Reissner3D"
 projFldr = pwd()
 
 n = 10
@@ -47,31 +47,26 @@ ct1 = modModel.computeCT(MT, CT1)
 #--------------------------------------------------
 
 
+reffe3 = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 reffe2 = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
-reffe1 = ReferenceFE(lagrangian,VectorValue{1,Float64},order)
 Vv = TestFESpace(model,reffe2;
                  conformity=:H1,
-                 dirichlet_tags=["diri_l"],
-                 dirichlet_masks=[(true,true)])
-Vw = TestFESpace(model,reffe1;
-                 conformity=:H1,
                  dirichlet_tags=["diri_l","diri_r"],
-                 dirichlet_masks=[(true),(true)])
+                 dirichlet_masks=[(true,true,true),(false,false,true)])
 Vt = TestFESpace(model,reffe2;
                  conformity=:H1,
                  dirichlet_tags=["diri_l"],
                  dirichlet_masks=[(true,true)])
-V = MultiFieldFESpace([Vv,Vw,Vt])
+V = MultiFieldFESpace([Vv,Vt])
 
-g0_1(x) = VectorValue( 0.0)
-g1_1(x) = VectorValue(+1.0)
+g0_3(x) = VectorValue( 0.0, 0.0, 0.0)
+g1_3(x) = VectorValue( 0.0, 0.0, 1.0)
 g0_2(x) = VectorValue( 0.0, 0.0)
 g1_2(x) = VectorValue(+1.0, 0.0)
 
-Uv = TrialFESpace(Vv, [g0_2])
-Uw = TrialFESpace(Vw, [g0_1,g1_1])
+Uv = TrialFESpace(Vv, [g0_3,g1_3])
 Ut = TrialFESpace(Vt, [g0_2])
-U = MultiFieldFESpace([Uv,Uw,Ut])
+U = MultiFieldFESpace([Uv,Ut])
 
 
 ###--------------------------------------------------
