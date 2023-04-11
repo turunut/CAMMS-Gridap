@@ -82,7 +82,11 @@ module modModel
     A = CT_2Dip*(1/1)*(mod.z2^1-mod.z1^1)
     B = CT_2Dip*(1/2)*(mod.z2^2-mod.z1^2)
     D = CT_2Dip*(1/3)*(mod.z2^3-mod.z1^3)
-    S = CT_2Dop*(1/1)*(mod.z2^1-mod.z1^1)#*(5/6)
+    S = CT_2Dop*(1/1)*(mod.z2^1-mod.z1^1)*(5/6)
+
+    for ten in [A, B, D, S]
+      print( ten )
+    end
 
     return [A, B, D, S]
   end

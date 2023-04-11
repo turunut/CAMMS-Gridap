@@ -2,4 +2,3 @@ Arreglar sign en models Beam 2D
 
 Verificar Reissner Midline
 
-Corretgir el grau tindegracio de tots els models

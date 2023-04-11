@@ -119,14 +119,17 @@ end
 tf = get_tangent_vector(Ω)
 nf = get_normal_vector(Ω)
 
-getₙ(x) = VectorValue(sign(x[1]+0.0000001)*norm(x))
+n0(x) = sign(sign(sign(x)+1)-0.5) # Torna 1 si el x igual o me es gran que 0, else retorna -1
+getₙ₁(x) = VectorValue( n0(x[1])*norm(x) )
+getₙ₂(x) = VectorValue( n0(x[2])*norm(x) )
 
-∂₁(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
+∂₁(u,êf) = getₙ₁ ∘ (∇(u) ⋅ êf)
+∂₂(u,êf) = getₙ₂ ∘ (∇(u) ⋅ êf)
 ∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
 
 a((u,θ),(v,t)) = ∫( ∂₁(v,tf)⊙σₑ(CTf[1],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
                  ∫( ∂₁(v,tf)⊙σₑ(CTf[2],∂₁(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
-                 ∫( γ(MT,∂₁(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₁(u,nf),θ)) )*dΩ 
+                 ∫( γ(MT,∂₂(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂₂(u,nf),θ)) )*dΩ 
 
 l((v,t)) = 0
 
