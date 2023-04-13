@@ -12,7 +12,7 @@ module GridapGiD
     nodes    = readFileNodes(fileName*".msh")
     Elements, ElementsMap, ElementsType, ElementsTypeMap, entities_lists = readFileModel(fileName*".msh")
     d_to_dface_to_entity = create_face_to_entity(entities_lists)
-    d_to_dface_to_entity, tag_to_entities, tag_to_name = readSets(fileName*".set", d_to_dface_to_entity)
+    d_to_dface_to_entity, tag_to_entities, tag_to_name = readSets(fileName*".set", entities_lists, d_to_dface_to_entity)
 
     c2n_map = Table(Elements, ElementsMap)
 
@@ -134,7 +134,7 @@ module GridapGiD
     return Elements, ElementsMap, ElementsType, ElementsTypeMap, entities_lists
   end
 
-  function readSets(problemName::String, d_to_dface_to_entity::Vector{Vector{Integer}})
+  function readSets(problemName::String, entities_lists::Vector{Vector{Set{Integer}}}, d_to_dface_to_entity::Vector{Vector{Integer}})
     tag_to_name     = ["interior"]
     tag_to_entities = [[1]       ]
     ibody = 2
@@ -150,7 +150,7 @@ module GridapGiD
           while splittedLine[1] != "set_end"
             ielem = parse(Int, splittedLine[1])
             imat  = parse(Int, splittedLine[2])
-            d_to_dface_to_entity[2][ielem] = imat
+            d_to_dface_to_entity[end][ielem] = imat
             splittedLine = readAndSplit(f)
           end
           println("  Finish reading set.")
@@ -158,15 +158,29 @@ module GridapGiD
 
         if splittedLine[1] == "tag_definition"
           println("  Reading tag.")
-          push!(tag_to_name, string(splittedLine[2]))
-          push!(tag_to_entities, [ibody])
+          index = parse(Int, splittedLine[2])
+
+          if string(splittedLine[3]) in tag_to_name
+            istri = findfirst(item -> item == string(splittedLine[3]), tag_to_name)
+            itag = tag_to_entities[istri][:]
+          else
+            push!(tag_to_name, string(splittedLine[3]))
+            push!(tag_to_entities, [ibody])
+            itag = ibody
+            ibody += 1
+          end
+          
           splittedLine = readAndSplit(f)
           while splittedLine[1] != "tag_end"
-            inode = parse(Int, splittedLine[1])
-            d_to_dface_to_entity[1][inode] = ibody
+            nodes = Vector{Integer}()
+            for num in splittedLine; push!(nodes, parse(Int, num)); end
+            setNodes = Set(nodes)
+
+            icon = findfirst(item -> item == setNodes, entities_lists[index])
+
+            d_to_dface_to_entity[index][icon] = itag
             splittedLine = readAndSplit(f)
           end
-          ibody += 1
           println("  Finish reading tag.")
         end
 

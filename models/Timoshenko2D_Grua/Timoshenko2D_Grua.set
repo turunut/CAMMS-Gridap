@@ -41,10 +41,10 @@ set_definition
 40 1
 set_end
 
-tag_definition left
+tag_definition 1 left
 1
 tag_end
 
-tag_definition right
+tag_definition 1 right
 40
 tag_end

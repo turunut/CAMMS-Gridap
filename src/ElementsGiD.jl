@@ -94,10 +94,20 @@ module ElementsGiD
       nodes   = Elements[ElementsMap[ielem]:ElementsMap[ielem+1]-1]
       index = get_type_index(elemgid)
 
-      entities_lists = compute_bouns(elemgid, d_to_dface_to_entity, nodes)
+      entities_lists = compute_bouns(elemgid, entities_lists, nodes)
 
       push!(entities_lists[index], Set(nodes))
+    end
 
+    # Els nodes han destar ordenats...
+    for i in 1:length(entities_lists[1])
+      entities_lists[1][i] = Set(i)
+    end
+
+    for i in reverse(1:4)
+      if length(entities_lists[i]) == 0
+        pop!(entities_lists)
+      end
     end
 
     return entities_lists
