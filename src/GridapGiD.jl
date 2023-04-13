@@ -5,14 +5,13 @@ module GridapGiD
   using Gridap.ReferenceFEs
   using Gridap.Arrays
   using Gridap.Geometry
+  using ElementsGiD
 
   function GiDDiscreteModel(fileName::String)
 
     nodes    = readFileNodes(fileName*".msh")
-    Elements, ElementsMap, ElementsType, ElementsTypeMap = readFileModel(fileName*".msh")
-    d_to_dface_to_entity = Vector{Vector{Int8}}()
-    push!(d_to_dface_to_entity, ones(Int8, length(nodes)))
-    push!(d_to_dface_to_entity, ones(Int8, length(ElementsMap) - 1))
+    Elements, ElementsMap, ElementsType, ElementsTypeMap, entities_lists = readFileModel(fileName*".msh")
+    d_to_dface_to_entity = create_face_to_entity(entities_lists)
     d_to_dface_to_entity, tag_to_entities, tag_to_name = readSets(fileName*".set", d_to_dface_to_entity)
 
     c2n_map = Table(Elements, ElementsMap)
@@ -33,17 +32,23 @@ module GridapGiD
   end
 
   function readFileNodes(problemName::String)
-    Nodes = Vector{VectorValue{2, Float64}}()
     ndime = 0
+
+    open(problemName) do f
+      while ! eof(f)
+        splittedLine = readAndSplit(f)
+        if splittedLine[1] == "mesh"
+          ndime = parse(Int, splittedLine[3])
+        end
+      end
+    end
+
+    Nodes = Vector{VectorValue{ndime, Float64}}()
 
     open(problemName) do f
       while ! eof(f) 
         
         splittedLine = readAndSplit(f)
-
-        if splittedLine[1] == "mesh"
-          ndime = parse(Int64, splittedLine[3])
-        end
 
         if splittedLine[1] == "coordinates"
           println("Reading coordinates.")
@@ -52,7 +57,7 @@ module GridapGiD
 
           while splittedLine[1] != "end"
 
-            idNode = parse(Int64, splittedLine[1])
+            idNode = parse(Int, splittedLine[1])
 
             coords  = parse.(Float64, splittedLine[2:1+ndime])
 
@@ -74,18 +79,27 @@ module GridapGiD
     ElementsType = Vector{Polytope}() # Vector{ExtrusionPolytope{1}}() # 
     ElementsTypeMap = Vector{Integer}()
     
+    ElementsTypeGiD = Vector{ElementGiD}()
+    
     push!(ElementsMap, 1)
 
     open(problemName) do f
       numNodes = 0
       elemType = ""
+      elemTypeString = ""
+      elemGiD = ""
       while ! eof(f)
         splittedLine = readAndSplit(f)
 
         if splittedLine[1] == "mesh"
-          elemType = getElemType(string(splittedLine[5]))
+          elemTypeString = string(splittedLine[5])
+          numNodes = parse(Int, splittedLine[7])
+
+          elemGiD = factoryElemGiD(elemTypeString, numNodes)
+
+          elemType = getGridapType(elemGiD)
+          push!(ElementsTypeGiD, elemGiD)
           push!(ElementsType, elemType)
-          numNodes = parse(Int8, splittedLine[7])
         end
 
         if splittedLine[1] == "elements"
@@ -93,12 +107,14 @@ module GridapGiD
 
           splittedLine = readAndSplit(f)
 
-          nodeList = Vector{Int8}(undef, numNodes)
+          nodeList = Vector{Integer}(undef, numNodes)
           while splittedLine[1] != "end"
 
             for (inum, num) in enumerate(splittedLine[2:(1+numNodes)])
-              nodeList[inum] = parse(Int8, num)
+              nodeList[inum] = parse(Int, num)
             end
+
+            nodeList = sortConn(elemGiD, nodeList)
 
             append!(Elements,        nodeList)
             append!(ElementsMap,     ElementsMap[end] + numNodes)
@@ -113,10 +129,12 @@ module GridapGiD
       end
     end
 
-    return Elements, ElementsMap, ElementsType, ElementsTypeMap
+    entities_lists = getElementsTypeMap(Elements, ElementsMap, ElementsTypeGiD, ElementsTypeMap)
+
+    return Elements, ElementsMap, ElementsType, ElementsTypeMap, entities_lists
   end
 
-  function readSets(problemName::String, d_to_dface_to_entity::Vector{Vector{Int8}})
+  function readSets(problemName::String, d_to_dface_to_entity::Vector{Vector{Integer}})
     tag_to_name     = ["interior"]
     tag_to_entities = [[1]       ]
     ibody = 2
@@ -130,8 +148,8 @@ module GridapGiD
           println("  Reading set.")
           splittedLine = readAndSplit(f)
           while splittedLine[1] != "set_end"
-            ielem = parse(Int8, splittedLine[1])
-            imat  = parse(Int8, splittedLine[2])
+            ielem = parse(Int, splittedLine[1])
+            imat  = parse(Int, splittedLine[2])
             d_to_dface_to_entity[2][ielem] = imat
             splittedLine = readAndSplit(f)
           end
@@ -144,7 +162,7 @@ module GridapGiD
           push!(tag_to_entities, [ibody])
           splittedLine = readAndSplit(f)
           while splittedLine[1] != "tag_end"
-            inode = parse(Int64, splittedLine[1])
+            inode = parse(Int, splittedLine[1])
             d_to_dface_to_entity[1][inode] = ibody
             splittedLine = readAndSplit(f)
           end
@@ -156,12 +174,6 @@ module GridapGiD
     end
 
     return d_to_dface_to_entity, tag_to_entities, tag_to_name
-  end
-
-  function getElemType(geometry::String)
-    if geometry == "linear"
-      return SEGMENT        
-    end
   end
 
   function readAndSplit(file)
@@ -182,6 +194,16 @@ module GridapGiD
     else
       return repeat(["emptyLine"], 5)
     end
+  end
+
+  function create_face_to_entity(entities_lists::Vector{Vector{Set{Integer}}})
+    d_to_dface_to_entity = Vector{Vector{Integer}}()
+
+    for list in entities_lists
+      push!(d_to_dface_to_entity, ones(Integer, length(list)))
+    end
+
+    return d_to_dface_to_entity
   end
 
 end

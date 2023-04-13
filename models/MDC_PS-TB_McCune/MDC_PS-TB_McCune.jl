@@ -23,7 +23,7 @@ projFldr = pwd()
 model = GmshDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName*".msh" )
 
 order  = 2
-degree = 2*order
+degree = 3*order
 
 #writevtk(model,"model")
 

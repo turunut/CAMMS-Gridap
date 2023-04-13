@@ -9,7 +9,8 @@ push!(LOAD_PATH, pwd()*"/src")
 push!(LOAD_PATH, pwd()*"/src/Materials")
 
 using Gridap
-using GridapGmsh
+#using GridapGmsh
+using GridapGiD
 using Gridap.Geometry
 using modCT
 using modModel
@@ -20,10 +21,20 @@ using Gridap.Arrays
 prblName = "Reissner3D"
 projFldr = pwd()
 
-n = 10
-domain = (0,100,0,100)
+
+
+
+
+n = 2
+domain = (0,10,0,10)
 partition = (n,n)
 model = CartesianDiscreteModel(domain,partition)
+
+
+
+
+
+model = GiDDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName )
 
 order = 1
 degree = 2*order
@@ -49,7 +60,7 @@ ct1 = modModel.computeCT(MT, CT1)
 
 reffe3 = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 reffe2 = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
-Vv = TestFESpace(model,reffe2;
+Vv = TestFESpace(model,reffe3;
                  conformity=:H1,
                  dirichlet_tags=["diri_l","diri_r"],
                  dirichlet_masks=[(true,true,true),(false,false,true)])
@@ -125,11 +136,36 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 #--------------------------------------------------
 
 
+function my_tangent(m)
+  t = m(VectorValue(1.0)) - m(VectorValue(0.0)) # Posicio local 0.0 i posicio local 1.0
+  return t/norm(t)
+end
+function my_normal(m)
+  t = my_tangent(m)
+  return TensorValue([0.0 -1.0; 1.0 0.0])⋅t
+end
+
+function get_tangent_vector(Ω::Triangulation{2})
+    cmaps = get_cell_map(Ω)
+    return CellField(lazy_map(my_tangent,cmaps),Ω)
+end
+function get_normal_vector(Ω::Triangulation{2})
+    cmaps = get_cell_map(Ω)
+    return CellField(lazy_map(my_normal,cmaps),Ω)
+end
+
+tf = get_tangent_vector(Ω)
+nf = get_normal_vector(Ω)
+
+getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
+∂ₙ(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
+∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
+
 q(x) = VectorValue(-1.0)
 
 a((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
                      ∫( ∂(v)⊙σ(CTf[2],∂(u)) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-                     ∫( γ(MT,∇(w),t)⊙σₑ(CTf[4], γ(MT,∇(ω),θ)) )*dΩ        # Shear
+                     ∫( γ(MT,∇(w),t)⊙σₑ(CTf[4], γ(MT,∇(ω),θ)) )*dΩ       # Shear
 
 l((v,w,t)) = 0.0
 #l((v,w,t)) = ∫(w⋅q)*dΩ
