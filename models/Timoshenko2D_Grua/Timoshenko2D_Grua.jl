@@ -136,6 +136,7 @@ nf = get_normal_vector(Ω)
 
 
 #get₁(x) = VectorValue(VectorValue(1.0,0.0)⋅x)
+getₑ(x,ê) = VectorValue( ê ⋅ x )
 #get₂(x) = VectorValue(VectorValue(0.0,1.0)⋅x)
 #getₒ(x) = VectorValue(VectorValue(1.0,1.0)⋅x)
 #n0(x) = sign(sign(sign(x)+1)-0.5) # Torna 1 si el x igual o me es gran que 0, else retorna -1
@@ -144,13 +145,18 @@ nf = get_normal_vector(Ω)
 #getₙ₁(x) = VectorValue( sign(sum(x))*norm(x) )
 #getₙ₂(x) = VectorValue( sign(sum(x))*norm(x) )
 
-getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
-∂ₙ(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
-∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
+#getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
+#∂ₙ(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
+#∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
 
-a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf)⊙σₑ(CTf[1],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
-                 ∫( ∂ₙ(v,tf)⊙σₑ(CTf[2],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
-                 ∫( γ(MT,∂ₙ(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf),θ)) )*dΩ 
+getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
+#∂ₙ(u,êf) = get₁ ∘ (∇(u) ⋅ êf)
+∂ₙ(u,ê,d) = getₑ ∘ ( ∇(u)⋅ê, d )
+∂ᵥ(θ,êf) = getₙ ∘ ∇(θ)
+
+a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
+                 ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ 
 
 l((v,t)) = 0
 
@@ -168,16 +174,19 @@ vh = uh.single_fe_functions[1]
 th = uh.single_fe_functions[2]
 
 writevtk(Ω,"models/"*prblName*"/"*prblName,
-         cellfields=["u" =>vh,
-                     "θ" =>th])
+         cellfields=["u" => vh,
+                     "θ" => th,
+                     "ε" => ∂ₙ(vh,tf,tf),
+                     "κ" => ∂ᵥ(th,tf),
+                     "γ" => ∂ₙ(vh,nf,tf)])
 
 
 #----------------------------------
 
 
-A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf)⊙σₑ(CTf[1],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ
-D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf)⊙σₑ(CTf[2],∂ₙ(u,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ
-S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf),θ)) )*dΩ
+A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ 
+D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ 
+S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ 
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)

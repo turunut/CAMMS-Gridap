@@ -6,7 +6,7 @@ module ElementsGiD
 
   using Gridap.Geometry
   using Gridap.ReferenceFEs
-  using DataStructures
+  #using DataStructures
 
   abstract type ElementGiD end
 
