@@ -99,7 +99,9 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
 
 function my_tangent(m)
-  t = m(VectorValue(1.0, 0.0)) - m(VectorValue(0.0, 0.0)) # Posicio local 0.0 i posicio local 1.0
+  ê₁ = m(VectorValue(1.0, 0.0)) - m(VectorValue(0.0, 0.0))
+  ê₂ = m(VectorValue(0.0, 1.0)) - m(VectorValue(0.0, 0.0))
+  ê₃ = cross(ê₁,ê₂)
   return t/norm(t)
 end
 function my_normal(m)
@@ -120,8 +122,8 @@ tf = get_tangent_vector(Ω)
 nf = get_normal_vector(Ω)
 
 getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
-∂ₙ(u,êf) = getₙ ∘ (∇(u) ⋅ êf)
-∂ᵥ(θ,êf) = êf ⋅ ∇(θ)
+∂ₙ(u,ê,d) = getₑ ∘ ( ∇(u)⋅ê, d )
+∂ᵥ(θ,êf) = getₙ ∘ ∇(θ)
 
 q(x) = VectorValue(-1.0)
 

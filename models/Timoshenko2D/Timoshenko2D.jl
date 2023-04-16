@@ -29,7 +29,7 @@ projFldr = pwd()
 
 #https://github.com/gridapapps/GridapGeosciences.jl/blob/master/src/CubedSphereDiscreteModels.jl
 
-rot = deg2rad(90.0)
+rot = deg2rad(30.0)
 
 nodes = [VectorValue( 00.0*1.25*cos(rot), 00.0*1.25*sin(rot)),
          VectorValue( 10.0*1.25*cos(rot), 10.0*1.25*sin(rot)),
@@ -197,10 +197,10 @@ getₑ(x,ê) = VectorValue( ê ⋅ x )
 getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
 #∂ₙ(u,ê,d) = getₑ ∘ ( ∇(u)⋅ê, d )
 ∂ₙ(u,ê,d) = getₑ ∘ ( ∇(u)⋅ê, d )
-∂ᵥ(θ,êf) = getₙ ∘ ∇(θ)
+∂ᵥ(θ) = getₙ ∘ ∇(θ)
 
-a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ + # Axial         + Axial/Bending
-                 ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ + # Bending/Axial + Bending
+a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t)⊙σₑ(CTf[2],∂ᵥ(θ)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t)⊙σₑ(CTf[3],∂ᵥ(θ)) )*dΩ + # Bending/Axial + Bending
                  ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ 
 
 l((v,t)) = 0
@@ -222,15 +222,15 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u" => vh,
                      "θ" => th,
                      "ε" => ∂ₙ(vh,tf,tf),
-                     "κ" => ∂ᵥ(th,tf),
+                     "κ" => ∂ᵥ(th),
                      "γ" => ∂ₙ(vh,nf,tf)])
 
 
 #----------------------------------
 
 
-A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[2],∂ᵥ(θ,tf)) )*dΩ
-D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,tf)⊙σₑ(CTf[3],∂ᵥ(θ,tf)) )*dΩ
+A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t)⊙σₑ(CTf[2],∂ᵥ(θ)) )*dΩ
+D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t)⊙σₑ(CTf[3],∂ᵥ(θ)) )*dΩ
 S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ
 
 UU = get_trial_fe_basis(U)
