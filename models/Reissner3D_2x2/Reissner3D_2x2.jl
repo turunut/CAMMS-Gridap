@@ -57,12 +57,12 @@ reffe3 = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 reffe2 = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
 Vv = TestFESpace(model,reffe3;
                  conformity=:H1,
-                 dirichlet_tags=["left","right"],
-                 dirichlet_masks=[(true,true,true),(false,false,true)])
+                 dirichlet_tags=["left","leftp","right"],
+                 dirichlet_masks=[(true,true,true),(true,true,true),(false,false,true)])
 Vt = TestFESpace(model,reffe2;
                  conformity=:H1,
-                 dirichlet_tags=["left"],
-                 dirichlet_masks=[(true,true)])
+                 dirichlet_tags=["left","left"],
+                 dirichlet_masks=[(true,true),(true,true)])
 V = MultiFieldFESpace([Vv,Vt])
 
 g0_3(x) = VectorValue( 0.0, 0.0, 0.0)
@@ -70,8 +70,8 @@ g1_3(x) = VectorValue( 0.0, 0.0,-1.0)
 g0_2(x) = VectorValue( 0.0, 0.0)
 g1_2(x) = VectorValue(-1.0, 0.0)
 
-Uv = TrialFESpace(Vv, [g0_3,g1_3])
-Ut = TrialFESpace(Vt, [g0_2])
+Uv = TrialFESpace(Vv, [g0_3,g0_3,g1_3])
+Ut = TrialFESpace(Vt, [g0_2,g0_2])
 U = MultiFieldFESpace([Uv,Ut])
 
 
@@ -158,25 +158,32 @@ end
 q(x) = VectorValue(-1.0)
 
 
+function getₑ₂(x,ê)
+  return ê'⋅x
+end
+function ∂ₙ₂(u,ê,d)
+  return getₑ₂ ∘ ( ∇(u)'⋅ê, d )
+end
 
 
 
 A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[2],∂ₙ(θ,tf,tfθ)) )*dΩ
-S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ 
+S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ₂(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ₂(u,nf,tf),θ)) )*dΩ 
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)
 contrA = A(UU,VV)
 elementA = first(contrA.dict).second[1]
+contrS = S(UU,VV)
+elementS = first(contrS.dict).second[1]
 
 
 
 
 
-
-a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σ(CTf[2],∂ᵥ(θ,nf)) )*dΩ + # Axial         + Axial/Bending
-                 ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σ(CTf[3],∂ᵥ(θ,nf)) )*dΩ + # Bending/Axial + Bending
-                 ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ 
+a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[2],∂ₙ(θ,tf,tfθ)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[2],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[3],∂ₙ(θ,tf,tfθ)) )*dΩ + # Bending/Axial + Bending
+                 ∫( γ(MT,∂ₙ₂(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ₂(u,nf,tf),θ)) )*dΩ 
 
 l((v,t)) = 0.0
 #l((v,t)) = ∫(w⋅q)*dΩ
@@ -192,12 +199,10 @@ solver = LinearFESolver(ls)
 
 uh = solve(op)
 vh = uh.single_fe_functions[1]
-wh = uh.single_fe_functions[2]
-th = uh.single_fe_functions[3]
+th = uh.single_fe_functions[2]
 
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u" =>vh,
-                     "ω" =>wh,
                      "θ" =>th])
                      #"∂ω"=>∂(wh)]) # "∂ω"=>ε(wh)⋅VectorValue(1.0),
                      #"γ" =>γ(MT,wh,th)])
@@ -206,9 +211,9 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 #--------------------------------------------------
 
 
-A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σₑ(CTf[2],∂ᵥ(θ,nf)) )*dΩ
-D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σₑ(CTf[3],∂ᵥ(θ,nf)) )*dΩ
-S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ
+A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[2],∂ₙ(θ,tf,tfθ)) )*dΩ
+D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[2],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[3],∂ₙ(θ,tf,tfθ)) )*dΩ
+S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ₂(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ₂(u,nf,tf),θ)) )*dΩ 
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)
