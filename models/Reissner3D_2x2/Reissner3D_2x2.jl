@@ -166,7 +166,6 @@ function ∂ₙ₂(u,ê,d)
 end
 
 
-
 A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[2],∂ₙ(θ,tf,tfθ)) )*dΩ
 S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ₂(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ₂(u,nf,tf),θ)) )*dΩ 
 
@@ -176,9 +175,6 @@ contrA = A(UU,VV)
 elementA = first(contrA.dict).second[1]
 contrS = S(UU,VV)
 elementS = first(contrS.dict).second[1]
-
-
-
 
 
 a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[2],∂ₙ(θ,tf,tfθ)) )*dΩ + # Axial         + Axial/Bending

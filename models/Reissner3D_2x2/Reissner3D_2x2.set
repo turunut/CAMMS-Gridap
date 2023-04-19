@@ -10,6 +10,12 @@ tag_definition 2 left
 2 3
 tag_end
 
+tag_definition 1 leftp
+1
+2
+3
+tag_end
+
 tag_definition 1 right
 9
 tag_end
