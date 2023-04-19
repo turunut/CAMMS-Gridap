@@ -97,42 +97,89 @@ CTf = get_CT_CellField(MT, CTs, tags, Ω)
 
 #--------------------------------------------------
 
+function symmetrize(t)
+  return SymTensorValue(get_array(0.5*(transpose(t) + t)))
+end
 
 function my_tangent(m)
-  ê₁ = m(VectorValue(1.0, 0.0)) - m(VectorValue(0.0, 0.0))
-  ê₂ = m(VectorValue(0.0, 1.0)) - m(VectorValue(0.0, 0.0))
-  ê₃ = cross(ê₁,ê₂)
-  return t/norm(t)
+  ê₁ = m(VectorValue(1.0, 0.0)) - m(VectorValue(0.0, 0.0)); ê₁ = ê₁/norm(ê₁)
+  ê₂ = m(VectorValue(0.0, 1.0)) - m(VectorValue(0.0, 0.0)); ê₂ = ê₂/norm(ê₂)
+  inplane  = TensorValue([ ê₁[1] ê₂[1];   #ê₃[1];
+                           ê₁[2] ê₂[2];   #ê₃[2];
+                           ê₁[3] ê₂[3] ]) #ê₃[3] ])
+  return inplane
+end
+function my_tangentθ(m)
+ê₁ = m(VectorValue(1.0, 0.0)) - m(VectorValue(0.0, 0.0)); ê₁ = ê₁/norm(ê₁)
+ê₂ = m(VectorValue(0.0, 1.0)) - m(VectorValue(0.0, 0.0)); ê₂ = ê₂/norm(ê₂)
+inplaneθ  = TensorValue([ ê₁[1] ê₂[1];
+                          ê₁[2] ê₂[2] ])
+return inplaneθ
 end
 function my_normal(m)
-  t = my_tangent(m)
-  return TensorValue([0.0 -1.0; 1.0 0.0])⋅t
+  ê₁ = m(VectorValue(1.0, 0.0)) - m(VectorValue(0.0, 0.0)); ê₁ = ê₁/norm(ê₁)
+  ê₂ = m(VectorValue(0.0, 1.0)) - m(VectorValue(0.0, 0.0)); ê₂ = ê₂/norm(ê₂)
+  outplane = cross(ê₁,ê₂)
+  return outplane
 end
 
-function get_tangent_vector(Ω::Triangulation{2})
+function get_tan_ref_sys(Ω::Triangulation{2})
     cmaps = get_cell_map(Ω)
     return CellField(lazy_map(my_tangent,cmaps),Ω)
 end
-function get_normal_vector(Ω::Triangulation{2})
+function get_tan_ref_sysθ(Ω::Triangulation{2})
+    cmaps = get_cell_map(Ω)
+    return CellField(lazy_map(my_tangentθ,cmaps),Ω)
+end
+function get_nor_ref_sys(Ω::Triangulation{2})
     cmaps = get_cell_map(Ω)
     return CellField(lazy_map(my_normal,cmaps),Ω)
 end
 
-tf = get_tangent_vector(Ω)
-nf = get_normal_vector(Ω)
+tf  = get_tan_ref_sys(Ω)
+tfθ = get_tan_ref_sysθ(Ω)
+nf  = get_nor_ref_sys(Ω)
+
+function getₑ(x,ê)
+  return symmetrize( ê'⋅x )
+end
+#getₑ(x,ê) = symmetrize( ê'⋅x )
 
 getₙ(x) = VectorValue( sign(sum(x))*norm(x) )
-∂ₙ(u,ê,d) = getₑ ∘ ( ∇(u)⋅ê, d )
-∂ᵥ(θ,êf) = getₙ ∘ ∇(θ)
+getᵥ(x) = VectorValue( x )
+
+function ∂ₙ(u,ê,d)
+  return getₑ ∘ ( ∇(u)'⋅ê, d )
+end
+
+#∂ₙ(u,ê,d) = getₑ ∘ ( ∇(u)⋅ê, d )
+∂ᵥ(θ,ê)   = getᵥ ∘ ( ∇(θ)⋅ê )
 
 q(x) = VectorValue(-1.0)
 
-a((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ + # Axial         + Axial/Bending
-                     ∫( ∂(v)⊙σ(CTf[2],∂(u)) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ + # Bending/Axial + Bending
-                     ∫( γ(MT,∇(w),t)⊙σₑ(CTf[4], γ(MT,∇(ω),θ)) )*dΩ       # Shear
 
-l((v,w,t)) = 0.0
-#l((v,w,t)) = ∫(w⋅q)*dΩ
+
+
+
+A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ₙ(t,tf,tfθ)⊙σ(CTf[2],∂ₙ(θ,tf,tfθ)) )*dΩ
+S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ 
+
+UU = get_trial_fe_basis(U)
+VV = get_fe_basis(V)
+contrA = A(UU,VV)
+elementA = first(contrA.dict).second[1]
+
+
+
+
+
+
+a((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σ(CTf[2],∂ᵥ(θ,nf)) )*dΩ + # Axial         + Axial/Bending
+                 ∫( ∂ₙ(v,tf,tf)⊙σ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σ(CTf[3],∂ᵥ(θ,nf)) )*dΩ + # Bending/Axial + Bending
+                 ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ 
+
+l((v,t)) = 0.0
+#l((v,t)) = ∫(w⋅q)*dΩ
 
 
 #--------------------------------------------------
@@ -159,9 +206,9 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 #--------------------------------------------------
 
 
-A((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) + ∂(t)⊙σ(CTf[2],∂(θ)) )*dΩ
-D((u,ω,θ),(v,w,t)) = ∫( ∂(v)⊙σ(CTf[2],∂(u)) + ∂(t)⊙σ(CTf[3],∂(θ)) )*dΩ
-S((u,ω,θ),(v,w,t)) = ∫( γ(MT,∇(w),t)⊙σₑ(CTf[4], γ(MT,∇(ω),θ)) )*dΩ
+A((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[1],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σₑ(CTf[2],∂ᵥ(θ,nf)) )*dΩ
+D((u,θ),(v,t)) = ∫( ∂ₙ(v,tf,tf)⊙σₑ(CTf[2],∂ₙ(u,tf,tf)) + ∂ᵥ(t,nf)⊙σₑ(CTf[3],∂ᵥ(θ,nf)) )*dΩ
+S((u,θ),(v,t)) = ∫( γ(MT,∂ₙ(v,nf,tf),t) ⊙ σₑ(CTf[4], γ(MT,∂ₙ(u,nf,tf),θ)) )*dΩ
 
 UU = get_trial_fe_basis(U)
 VV = get_fe_basis(V)
