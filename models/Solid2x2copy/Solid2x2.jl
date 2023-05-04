@@ -11,13 +11,11 @@ push!(LOAD_PATH, pwd()*"/src/Materials")
 using Gridap
 using GridapGmsh
 using Gridap.Geometry
-using Gridap.Adaptivity
 using modCT
 using modModel
 using modSubroutines
 using Gridap.TensorValues
 using Gridap.Arrays
-using FillArrays
 
 prblName = "Solid2x2"
 projFldr = pwd()
@@ -88,23 +86,17 @@ Coarse_to_fine = tabl
 boundary_tags = ["face"]
 Γ  = BoundaryTriangulation(model,tags=boundary_tags)
 
-n2o_cells = zeros(Int, length(Γ.glue.face_to_bgface))
+o2n_cells = zeros(Int, length(Γ.glue.face_to_bgface))
 child_ids = zeros(Int, length(Γ.glue.face_to_bgface))
+rrules = zeros(Int, length(tabl))
 
 for (islide, slide_list) in enumerate(tabl)
     for (izpos, num) in enumerate(slide_list)
         ind = findall(x->x==num, Γ.glue.face_to_bgface)[1]
-        n2o_cells[ind] = islide
+        o2n_cells[ind] = islide
         child_ids[ind] = izpos
     end  
 end
-
-n2o_faces = [Int[],Int[],n2o_cells]
-rrules = Fill(RefinementRule(QUAD,(1,length(tabl[1]))),length(tabl))
-
-glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
-
-coarse_face_model = CartesianDiscreteModel((0,1,0,1),(length(tabl),1))
 
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -121,6 +113,15 @@ com_coords_line = lazy_map(N->sum(N)/length(N),face_coords_line)
 x_coords_line = map(c->c[1],com_coords_line)
 
 rrules = sortperm(x_coords_line)
+
+
+#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+boundary_tags = ["face"]
+Γ = BoundaryTriangulation(model,tags=boundary_tags)
+dΓ = Measure(Γ,degree)
+n_Γ = get_normal_vector(Γ)
 
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -153,16 +154,25 @@ VS = TestFESpace(model,reffe;
                  dirichlet_tags=["wall"],
                  dirichlet_masks=[(true,true,true)])
 
-reffe = ReferenceFE(lagrangian,Float64,0,space=:P)
-Vλ = FESpace(coarse_face_model,reffe,conformity=:L2)
+reffe_line = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
+VL = TestFESpace(model_line,reffe_line;
+                 conformity=:H1,
+                 dirichlet_tags=["tag_1"],
+                 dirichlet_masks=[(true,true,true)])
 
-V = MultiFieldFESpace([VS,Vλ])
+VcouplS = ConstantFESpace(model)
+VcouplB = ConstantFESpace(model_line)
+
+V = MultiFieldFESpace([VS,VL,VcouplS,VcouplB])
 
 g1(x) = VectorValue(0.0,0.0,0.0)
+g2(x) = VectorValue(1.0,0.0,0.0)
 
 US = TrialFESpace(VS,[g1])
-Uλ = TrialFESpace(Vλ)
-U = MultiFieldFESpace([US,Uλ])
+UL = TrialFESpace(VL,[g2])
+UcouplS = TrialFESpace(VcouplS)
+UcouplB = TrialFESpace(VcouplB)
+U = MultiFieldFESpace([US,UL,UcouplS,UcouplB])
 
 
 #--------------------------------------------------
@@ -170,15 +180,13 @@ U = MultiFieldFESpace([US,Uλ])
 
 # Definim l'integration mesh
 Ω = Triangulation(model)
+# Contruim el l'espai de mesura de Lebesgues de ordre "degree"
 dΩ = Measure(Ω,degree)
 
-boundary_tags = ["face"]
-Γ = BoundaryTriangulation(model,tags=boundary_tags)
-dΓ = Measure(Γ,degree)
-n_Γ = get_normal_vector(Γ)
-
-Γc = Triangulation(coarse_face_model)
-
+# Definim l'integration mesh
+L = Triangulation(model_line)
+# Contruim el l'espai de mesura de Lebesgues de ordre "degree"
+dL = Measure(L,degree)
 
 
 #--------------------------------------------------
@@ -202,38 +210,14 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 f = VectorValue(0.0,0.0)
 g = 0.0
 
-a((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ + ∫( λ*(v⋅n_Γ) )*dΓ +
-                 ∫( μ*(u⋅n_Γ) )*dΓ
+a((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ + ∫( λ*(v⋅n_Γ) )*dΓ + ∫( λ*(v⋅n_Γ) )*dL +
+                 ∫( μ*(u⋅n_Γ) )*dΓ + ∫( μ*(u⋅n_Γ) )*dΓ
 
 l((v,μ)) = ∫(v⋅f)*dΩ +
            ∫(μ*g)*dΓ
 
 
 #--------------------------------------------------
-
-u = get_trial_fe_basis(US)
-λ = get_trial_fe_basis(Uλ)
-
-v = get_fe_basis(US)
-μ = get_fe_basis(Uλ)
-
-function lag_change_domain(f_coarse,ftrian::Triangulation,glue)
-    # Coarse field but with fine indexing, i.e 
-    #   f_f2c[i_fine] = f_coarse[coarse_parent(i_fine)]
-    f_f2c = Gridap.Adaptivity.c2f_reindex(f_coarse,glue)
-
-    # Fine to coarse coordinate map: x_coarse = Φ^(-1)(x_fine)
-    ref_coord_map = Gridap.Adaptivity.get_n2o_reference_coordinate_map(glue)
-
-    # Final map: f_fine(x_fine) = f_f2c ∘ Φ^(-1)(x_fine) = f_coarse(x_coarse)
-    f_fine = lazy_map(∘,f_f2c,ref_coord_map)
-    return Gridap.CellData.GenericCellField(f_fine,ftrian,Gridap.CellData.ReferenceDomain())
-end
-
-λf = lag_change_domain(λ,Γ,glue)
-μf = lag_change_domain(μ,Γ,glue)
-
-contr = a((u,λf),(v,μf))
 
 
 op = AffineFEOperator(a,l,U,V0)
