@@ -96,7 +96,7 @@ module modModel
   end
   
   function σₑ(ct::CellField, ϵ::CellField)
-    return ∘(ct ⋅ ϵ)
+    return (ct ⋅ ϵ)
   end
 
   function ∂(u::CellField)
@@ -142,6 +142,11 @@ module modModel
     cts3 = CompressedArray(listCTs[3,:], tags)
     cts4 = CompressedArray(listCTs[4,:], tags)
     return [CellField(cts1,Ω), CellField(cts2,Ω), CellField(cts3,Ω), CellField(cts4,Ω)]
+  end
+
+  function get_CT_CellField_posZ(mod::Model, listCTs, Ω::Triangulation)
+    cts = CompressedArray(listCTs[1,:], tags)
+    return [CellField(cts,Ω)]
   end
 
 end

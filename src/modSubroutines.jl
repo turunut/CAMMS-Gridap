@@ -1,5 +1,5 @@
 module modSubroutines
-  export get_tags, get_E_CellField
+  export get_tags, get_E_CellField, ctˣ
 
   using Gridap.Geometry
   using Gridap.Arrays
@@ -27,6 +27,11 @@ module modSubroutines
     end
     cts = CompressedArray(listEs, tags)
     return CellField(cts,Ω)
+  end
+
+  ctˣ_ope(cf,p) = cf^p
+  function ctˣ(cf::CellField,p::Integer)
+    return Operation(ctˣ_ope)(cf,p)
   end
 
 end
