@@ -31,7 +31,7 @@ model_line = CartesianDiscreteModel(domain_line,partition_line)
 order  = 1
 degree = 2*order
 
-writevtk(model,"model")
+writevtk(model,"models/"*prblName*"/model")
 
 labels = get_face_labeling(model)
 add_tag_from_tags!(labels,"wall",[1,3,5,7,13,15,17,19,25])

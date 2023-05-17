@@ -25,7 +25,7 @@ model = GmshDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName*".msh" )
 order  = 2
 degree = 3*order
 
-#writevtk(model,"model")
+#writevtk(model,"models/"*prblName*"/model")
 
 labels = get_face_labeling(model)
 

@@ -39,7 +39,7 @@ model = GiDDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName )
 order = 1
 degree = 2*order
 
-#writevtk(model,"model")
+#writevtk(model,"models/"*prblName*"/model")
 
 labels = get_face_labeling(model)
 add_tag_from_tags!(labels,"diri_l",[7, 1, 3]) # left  edge

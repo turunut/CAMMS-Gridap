@@ -97,33 +97,29 @@ rrules = Fill(RefinementRule(QUAD,(1,length(c2f_faces[1]))),length(c2f_faces))
 glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
 
 cface_model = CartesianDiscreteModel((0,1,0,1),(length(c2f_faces),1))
+
 Γc = Triangulation(cface_model)
 Γf = Adaptivity.GluedTriangulation(Γ,Γc,glue)
-
-############################################################################################
-
-line_model = CartesianDiscreteModel((0,1),(length(c2f_faces)))
-Λe = Triangulation(line_model)
 
 ############################################################################################
 # FESpaces 
 
 reffe_u = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 reffe_λ = ReferenceFE(lagrangian,Float64,0)
-reffe_e = ReferenceFE(lagrangian,Float64,1)
+#reffe_λ = ReferenceFE(lagrangian,Float64,0,space=:P)
+
 
 Vu = TestFESpace(Ω,reffe_u;
                  conformity=:H1,
-                 dirichlet_tags=["wall"],
-                 dirichlet_masks=[(true,true,true)])
+                 dirichlet_tags=["wall","laterals"],
+                 dirichlet_masks=[(true,true,true),(true,true,true)])
 g1(x) = VectorValue(0.0,0.0,0.0)
-Uu = TrialFESpace(Vu,[g1])
+Uu = TrialFESpace(Vu,[g1,g1])
+
 
 Vλ = FESpace(Γc,reffe_λ,conformity=:L2)
 Uλ = TrialFESpace(Vλ)
 
-Ve = FESpace(Λe,reffe_e,conformity=:H1)
-Ue = TrialFESpace(Ve)
 
 U = MultiFieldFESpace([Uu,Uλ])
 V = MultiFieldFESpace([Vu,Vλ])
@@ -153,20 +149,22 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
 tr_Γf(λ) = change_domain(λ,Γf,DomainStyle(λ))
 
-_get_y(x) = VectorValue(x[2])
-function π_Λe_Γc(f::CellField)
-    _data = CellData.get_data(f)
-    _cellmap = Fill(Broadcasting(_get_y),length(_data))
-    data = lazy_map(∘,_data,_cellmap)
-    return CellData.similar_cell_field(f,data,Γc,CellData.DomainStyle(f))
-end
-
-
 f = VectorValue(0.0,0.0,0.0)
 
-xe = zero_free_values(Ue); xe[3] = 1.0
-ue = FEFunction(Ue,xe)
-ue_c = π_Λe_Γc(ue)
+# No funciona dona un constant igual al maxim
+function g(x)
+  lenElem = 0.40
+  if     (x[2] > 0.05) && (x[2] < 0.40)
+    return x[2]*2.5
+  elseif (x[2] > 0.40) && (x[2] < 0.75)
+    return 1.0 - (x[2]-0.4)*2.5
+  else 
+    return 0.0
+  end
+end
+
+#g(x) = x[2]*1.0
+#g_cf = CellField(g,Γf)
 
 z_coord(x) = x[3]
 z_cf = CellField(z_coord,Ω)
@@ -181,7 +179,7 @@ aΓ((u,λ),(v,μ)) = ∫( tr_Γf(λ)*(v⋅n_Γ) )*dΓ + ∫( tr_Γf(μ)*(u⋅n_�
 a((u,λ),(v,μ))  = aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
 
 l((v,μ)) = ∫(v⋅f)*dΩ + 
-           ∫(tr_Γf(μ*ue_c))*dΓ
+           ∫(tr_Γf(μ)*g)*dΓ
 
 A = assemble_matrix(a,U,V)
 b = assemble_vector(l,V)
@@ -193,9 +191,9 @@ op = AffineFEOperator(a,l,U,V)
 ls = LUSolver()
 solver = LinearFESolver(ls)
 
-xh = solve(op);
-uh, λh = xh;
+sol = solve(op)
 
+uh = sol.single_fe_functions[1]
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>uh,
                      "ε"=>∂(uh),

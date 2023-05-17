@@ -31,7 +31,7 @@ writevtk(model,projFldr*"/models/"*prblName*"/"*prblName)
 order = 1
 degree = 2*order
 
-#writevtk(model,"model")
+#writevtk(model,"models/"*prblName*"/model")
 
 labels = get_face_labeling(model)
 
