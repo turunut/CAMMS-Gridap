@@ -84,9 +84,9 @@ axis_id = 1; face_B2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf_X1 = McCune(Γ_X1, int_coords, axis_id, face_B2_pos)
 c2f_faces, cface_model_X1, Γc_X1, Γf_X1 = define_corse_fine_Γ(Γ_X1, int_coords, axis_id, face_B2_pos)
 
-axis_id = 1; face_B1_pos = minimum(lazy_map(c->c[axis_id],int_coords))
+axis_id = 1; face_B2_pos = minimum(lazy_map(c->c[axis_id],int_coords))
 Γ_X0  = BoundaryTriangulation(model,tags=["tag_25"]) # y-z, x = 0
-intrf_X1 = McCune(Γ_X0, int_coords, axis_id, face_B2_pos)
+intrf_X0 = McCune(Γ_X0, int_coords, axis_id, face_B2_pos)
 c2f_faces, cface_model_X0, Γc_X0, Γf_X0 = define_corse_fine_Γ(Γ_X0, int_coords, axis_id, face_B1_pos)
 
 ############################################################################################
@@ -97,30 +97,36 @@ line_model_X0, Λe_X0 = get_line_model(intrf_X0)
 
 ############################################################################################
 # FESpaces 
-
+# Model 3D
 reffe_u = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
+# Cares reduides
 reffe_λ_X1 = ReferenceFE(lagrangian,Float64,0)
 reffe_λ_X0 = ReferenceFE(lagrangian,Float64,0)
-reffe_e_X1 = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
-reffe_e_X0 = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 
 Vu = TestFESpace(Ω,reffe_u;conformity=:H1)
 Vλ_X1 = FESpace(Γc_X1,reffe_λ_X1,conformity=:L2)
 Vλ_X0 = FESpace(Γc_X0,reffe_λ_X0,conformity=:L2)
 
-Ve_X1 = FESpace(Λe_X1,reffe_e_X1,conformity=:H1)
-Ve_X0 = FESpace(Λe_X0,reffe_e_X0,conformity=:H1)
-
 Uu = TrialFESpace(Vu)
 Uλ_X1 = TrialFESpace(Vλ_X1)
 Uλ_X0 = TrialFESpace(Vλ_X0)
+
+V = MultiFieldFESpace([Vu,Vλ_X1,Vλ_X0])
+U = MultiFieldFESpace([Uu,Uλ_X1,Uλ_X0])
+
+# -----------------------------------------------
+# Models linea
+reffe_e_X1 = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
+reffe_e_X0 = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
+
+Ve_X1 = FESpace(Λe_X1,reffe_e_X1,conformity=:H1)
+Ve_X0 = FESpace(Λe_X0,reffe_e_X0,conformity=:H1)
 
 Ue_X1 = TrialFESpace(Ve_X1)
 Ue_X0 = TrialFESpace(Ve_X0)
 
 
-V = MultiFieldFESpace([Vu,Vλ_X1,Vλ_X0])
-U = MultiFieldFESpace([Uu,Uλ_X1,Uλ_X0])
+# Dominis
 
 dΩ = Measure(Ω,  degree)
 dΓ_X1 = Measure(Γf_X1, degree)
@@ -151,7 +157,7 @@ tr_Γf_X1(λ) = change_domain(λ,Γf_X1,DomainStyle(λ))
 tr_Γf_X0(λ) = change_domain(λ,Γf_X0,DomainStyle(λ))
 
 _get_y(x) = VectorValue(x[2])
-function π_Λe_Γc(f::CellField)
+function π_Λe_Γc(f::CellField, Γc::Triangulation)
     _data = CellData.get_data(f)
     _cellmap = Fill(Broadcasting(_get_y),length(_data))
     data = lazy_map(∘,_data,_cellmap)
@@ -163,7 +169,11 @@ f = VectorValue(0.0,0.0,0.0)
 
 xe_X1 = zero_free_values(Ue_X1); xe_X1[3] = 1.0
 ue_X1 = FEFunction(Ue_X1,xe_X1)
-ue_c = π_Λe_Γc(ue)
+ue_c_X1 = π_Λe_Γc(ue_X1, Γc_X1)
+
+xe_X0 = zero_free_values(Ue_X0); xe_X0[3] = 0.0
+ue_X0 = FEFunction(Ue_X0,xe_X0)
+ue_c_X0 = π_Λe_Γc(ue_X0, Γc_X0)
 
 z_coord(x) = x[3]
 z_cf = CellField(z_coord,Ω)

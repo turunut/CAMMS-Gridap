@@ -1,5 +1,5 @@
 module modInterface
-  export create_interface, define_corse_fine_Γ
+  export create_interface, define_corse_fine_Γ, get_line_model
   export McCune
 
   using Gridap
