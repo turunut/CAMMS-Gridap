@@ -110,7 +110,7 @@ line_model = CartesianDiscreteModel((0,1),(length(c2f_faces)))
 
 reffe_u = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 reffe_λ = ReferenceFE(lagrangian,Float64,0)
-reffe_e = ReferenceFE(lagrangian,Float64,1)
+reffe_e = ReferenceFE(lagrangian,Float64,order)
 
 Vu = TestFESpace(Ω,reffe_u;
                  conformity=:H1,
