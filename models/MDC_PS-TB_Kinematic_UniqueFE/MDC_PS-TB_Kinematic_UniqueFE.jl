@@ -14,6 +14,7 @@ using Gridap.Geometry
 using modCT
 using modModel
 using modSubroutines
+using modInterface
 using Gridap.TensorValues
 using Gridap.Arrays
 
@@ -53,7 +54,8 @@ dΩ = Measure(Ω,degree)
 boundary_tags = ["right", "right_points"]
 Γ  = BoundaryTriangulation(model,tags=boundary_tags)
 dΓ = Measure(Γ,degree)
-n_Γ = get_normal_vector(Γ)
+
+intrf = Intrf_Kinematic2D(Γ, degree)
 
 
 #--------------------------------------------------
@@ -65,17 +67,13 @@ Vu = TestFESpace(model,reffe;
                  conformity=:H1,
                  dirichlet_tags=["left", "left_points"],
                  dirichlet_masks=[(true,true), (true,true)])
-
-Vλ = ConstantFESpace(model,field_type=VectorValue{2,Float64})
-
-V  = MultiFieldFESpace([Vu,Vλ])
-
 g0(x) = VectorValue(0.0,0.0)
-
 Uu = TrialFESpace(Vu,[g0,g0])
-Uλ = TrialFESpace(Vλ)
 
-U   = MultiFieldFESpace([Uu,Uλ])
+Vλ, Uλ = get_test_trial_spaces(intrf, model)
+
+V = MultiFieldFESpace([Vu,Vλ])
+U = MultiFieldFESpace([Uu,Uλ])
 
 
 #--------------------------------------------------
@@ -98,26 +96,31 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 # External forces
 f(x) = VectorValue(0.0,0.0)
 
-# Valor equivalent a l'integral
-L_fun = sum(∫(1.0)*dΓ)                # Omega o Gamma
-L     = L_fun
-
-g(x) = VectorValue(0.0,1.0)
+## Valor equivalent a l'integral
+#L_fun = sum(∫(1.0)*dΓ)                # Omega o Gamma
+#L     = L_fun
 
 z_coord(x) = x[2]
 z_cf = CellField(z_coord,Ω)
 
-get_x(x) = x[1]
-get_y(x) = x[2]
+#u,λ,v,μ = :u,:λ,:v,:μ
+trial = (:u,:λ)
+tests = (:v,:μ)
+
+Uα = get_trial_fe_basis(U)
+Vα = get_fe_basis(V)
 
 aΩ((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
 #aΓ((u,λ),(v,μ)) = ∫( get_x∘(λ)*(v⋅VectorValue(1.0,0.0)) + get_x∘(μ)*(u⋅VectorValue(1.0,0.0)) )*dΓ + 
 #                  ∫( get_y∘(λ)*(v⋅VectorValue(0.0,1.0)) + get_y∘(μ)*(u⋅VectorValue(0.0,1.0)) )*dΓ
-aΓ((u,λ),(v,μ)) = ∫( (λ⋅v) + (μ⋅u) )*dΓ
+#aΓ((u,λ),(v,μ)) = ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
 
- a((u,λ),(v,μ)) = aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
+aΓ(Uα,Vα) = contribute_matrix(intrf, Uα, Vα, 1, 2)
 
+a((u,λ),(v,μ)) = aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
+
+g(x) = VectorValue(0.0,1.0)
 l((v,μ)) = ∫(v⋅f)*dΩ + ∫(μ⋅g)*dΓ
 
 
@@ -125,12 +128,13 @@ l((v,μ)) = ∫(v⋅f)*dΩ + ∫(μ⋅g)*dΓ
 
 #A((u,λ),(v,μ)) = ∫( (λ⋅v) + (μ⋅u) )*dΓ
 #
+##
 #UU = get_trial_fe_basis(U)
 #VV = get_fe_basis(V)
-#contrA = A(UU,VV)
+#A(UU,VV) = ∫( (UU[2]⋅VV[1]) + (VV[2]⋅UU[1]) )*dΓ
+#B(UU,VV) = ∫( ∂(VV[1])⊙σ(CTf[1],∂(UU[1])) )*dΩ
+#contrA = B(UU,VV)
 #elementA = first(contrA.dict).second[1]
-
-
 
 op = AffineFEOperator(a,l,U,V)
 

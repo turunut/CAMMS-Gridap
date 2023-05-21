@@ -1,17 +1,110 @@
 module modInterface
   export create_interface, define_corse_fine_Γ, get_line_model
+  export get_dofs, get_test_trial_spaces, contribute_matrix, in_matrix
+  export Intrf_Timoshenko, Intrf_Kinematic2D
   export McCune
 
   using Gridap
   using Gridap.Arrays
   using Gridap.TensorValues
   using Gridap.Adaptivity
+  using Gridap.CellData
+  using Gridap.MultiField
   using FillArrays
 
   abstract type interface end
 
   abstract type inter2D <: interface end
   abstract type inter3D <: interface end
+
+  get_i(x,i::Int64) = x[i]
+  
+  struct Intrf_Kinematic2D <: inter2D
+    Γ::Triangulation
+    dΓ::Measure
+  end
+  function Intrf_Kinematic2D(Γ::Triangulation, degree::Int64)
+    dΓ = Measure(Γ,degree)
+    return Intrf_Kinematic2D(Γ,dΓ)    
+  end
+  
+  struct Intrf_Timoshenko <: inter2D
+    Γ::Triangulation
+    dΓ::Measure           
+  end
+  function Intrf_Timoshenko(Γ::Triangulation, degree::Int64)
+    dΓ = Measure(Γ,degree)
+
+    get_x(x) = x[1]
+    get_y(x) = x[2]
+    
+    Ef = get_E_CellField([CT1, CT2, CT1], tags, Ω)
+    
+    z_coord(x) = x[2]
+    z_cf = CellField(z_coord,Ω)
+    
+    Da_fun(Ef)      = sum(∫(           Ef )*dΓ)
+    Db_fun(Ef,z_cf) = sum(∫(      z_cf*Ef )*dΓ)
+    Dd_fun(Ef,z_cf) = sum(∫( z_cf*z_cf*Ef )*dΓ)
+    S__fun(Ef)      = sum(∫(           Ef )*dΓ)
+    L__fun = sum(∫(    1.0 )*dΓ)               
+    I__fun = sum(∫( z_cf*z_cf )*dΓ)            
+    
+    function step(z::Float64,z_val::Float64)
+      if z <= (z_val)
+        return 1.0
+      else
+        return 0.0
+      end
+    end
+    
+    step_field(z_cf,z_val) = CellField(step.(z_cf,z_val),Ω)
+    
+    da_fun(Ef,z_cf,z_val) = sum(∫(      step_field(z_cf,z_val)*Ef )*dΓ)
+    db_fun(Ef,z_cf,z_val) = sum(∫( z_cf*step_field(z_cf,z_val)*Ef )*dΓ)
+    
+    Da = Da_fun(Ef)
+    Db = Db_fun(Ef,z_cf)
+    Dd = Dd_fun(Ef,z_cf)
+    da(z_val) = da_fun(Ef,z_cf,z_val)
+    db(z_val) = db_fun(Ef,z_cf,z_val)
+    L  = L__fun
+    I  = I__fun
+
+
+
+
+
+
+
+
+
+
+
+    return Intrf_Timoshenko(Γ,dΓ)    
+  end
+
+  get_dofs(intrf::Intrf_Kinematic2D) = 2
+  get_dofs(intrf::Intrf_Timoshenko)  = 3
+
+  function get_test_trial_spaces(intrf::interface, model::DiscreteModel)
+    dofs = get_dofs(intrf)
+    Vλ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
+    Uλ = TrialFESpace(Vλ)
+    return Vλ, Uλ
+  end
+
+  function contribute_matrix(intrf::Intrf_Kinematic2D, U_basis::MultiFieldCellField, V_basis::MultiFieldCellField,
+                                                       U_ind::Int64, V_ind::Int64)
+    u = U_basis[U_ind]; v = V_basis[U_ind]
+    λ = U_basis[V_ind]; μ = V_basis[V_ind]
+    return ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
+  end
+
+  function in_matrix(intrf::Intrf_Timoshenko, aΓ)
+    aΓ = ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
+    return aΓ
+  end
 
   #mutable struct McCune <: interface
   struct McCune <: inter3D
