@@ -51,11 +51,13 @@ ct2 = modModel.computeCT(modlType, CT2)
 # Contruim el l'espai de mesura de Lebesgues de ordre "degree"
 dΩ = Measure(Ω,degree)
 
-boundary_tags = ["right", "right_points"]
-Γ  = BoundaryTriangulation(model,tags=boundary_tags)
-dΓ = Measure(Γ,degree)
+boundary_tags_a = ["left", "left_points"]
+Γa = BoundaryTriangulation(model,tags=boundary_tags_a)
+boundary_tags_b = ["right", "right_points"]
+Γb = BoundaryTriangulation(model,tags=boundary_tags_b)
 
-intrf = Intrf_Kinematic2D(Γ, degree)
+intrfA = Intrf_Kinematic2D(Γa, degree)
+intrfB = Intrf_Kinematic2D(Γb, degree)
 
 
 #--------------------------------------------------
@@ -64,16 +66,14 @@ intrf = Intrf_Kinematic2D(Γ, degree)
 reffe   = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
 
 Vu = TestFESpace(model,reffe;
-                 conformity=:H1,
-                 dirichlet_tags=["left", "left_points"],
-                 dirichlet_masks=[(true,true), (true,true)])
-g0(x) = VectorValue(0.0,0.0)
-Uu = TrialFESpace(Vu,[g0,g0])
+                 conformity=:H1)
+Uu = TrialFESpace(Vu)
 
-Vλ, Uλ = get_test_trial_spaces(intrf, model)
+Vλa, Uλa = get_test_trial_spaces(intrfA, model)
+Vλb, Uλb = get_test_trial_spaces(intrfB, model)
 
-V = MultiFieldFESpace([Vu,Vλ])
-U = MultiFieldFESpace([Uu,Uλ])
+V = MultiFieldFESpace([Vu,Vλa,Vλb])
+U = MultiFieldFESpace([Uu,Uλa,Vλb])
 
 
 #--------------------------------------------------
@@ -103,25 +103,23 @@ f(x) = VectorValue(0.0,0.0)
 z_coord(x) = x[2]
 z_cf = CellField(z_coord,Ω)
 
-#u,λ,v,μ = :u,:λ,:v,:μ
-trial = (:u,:λ)
-tests = (:v,:μ)
-
 Uα = get_trial_fe_basis(U)
 Vα = get_fe_basis(V)
 
-aΩ((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+aΩ((u,λ,α),(v,μ,β)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
 #aΓ((u,λ),(v,μ)) = ∫( get_x∘(λ)*(v⋅VectorValue(1.0,0.0)) + get_x∘(μ)*(u⋅VectorValue(1.0,0.0)) )*dΓ + 
 #                  ∫( get_y∘(λ)*(v⋅VectorValue(0.0,1.0)) + get_y∘(μ)*(u⋅VectorValue(0.0,1.0)) )*dΓ
 #aΓ((u,λ),(v,μ)) = ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
 
-aΓ(Uα,Vα) = contribute_matrix(intrf, Uα, Vα, 1, 2)
+aΓa((u,λ,α),(v,μ,β)) = contribute_matrix(intrfA, Uα, Vα, 1, 2)
+aΓb((u,λ,α),(v,μ,β)) = contribute_matrix(intrfB, Uα, Vα, 1, 3)
 
-a((u,λ),(v,μ)) = aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
+a((u,λ,α),(v,μ,β)) = aΩ((u,λ,α),(v,μ,β)) + aΓa((u,λ,α),(v,μ,β)) + aΓb((u,λ,α),(v,μ,β))
 
-g(x) = VectorValue(0.0,1.0)
-l((v,μ)) = ∫(v⋅f)*dΩ + ∫(μ⋅g)*dΓ
+ga(x) = VectorValue(0.0,1.0)
+gb(x) = VectorValue(0.0,0.0)
+l((v,μ,β)) = ∫(v⋅f)*dΩ + ∫(μ⋅ga)*intrfA.dΓ + ∫(β⋅gb)*intrfB.dΓ
 
 
 #--------------------------------------------------
