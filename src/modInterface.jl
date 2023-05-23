@@ -1,6 +1,6 @@
 module modInterface
   export create_interface, define_corse_fine_Γ, get_line_model
-  export get_dofs, get_test_trial_spaces, contribute_matrix, in_matrix
+  export get_dofs, get_test_trial_spaces, contribute_matrix, in_matrix, print_info
   export Intrf_Timoshenko, Intrf_Kinematic2D
   export McCune
 
@@ -30,58 +30,33 @@ module modInterface
   
   struct Intrf_Timoshenko <: inter2D
     Γ::Triangulation
-    dΓ::Measure           
+    Ω::Triangulation
+    dΓ::Measure
+    Ef::CellField
+    zf::CellField
+    I::Float64
+    L::Float64
+    Da::Float64
+    Db::Float64
+    Dd::Float64
   end
-  function Intrf_Timoshenko(Γ::Triangulation, degree::Int64)
+  function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, Ef::CellField, zf::CellField)
     dΓ = Measure(Γ,degree)
-
-    get_x(x) = x[1]
-    get_y(x) = x[2]
     
-    Ef = get_E_CellField([CT1, CT2, CT1], tags, Ω)
-    
-    z_coord(x) = x[2]
-    z_cf = CellField(z_coord,Ω)
-    
-    Da_fun(Ef)      = sum(∫(           Ef )*dΓ)
-    Db_fun(Ef,z_cf) = sum(∫(      z_cf*Ef )*dΓ)
-    Dd_fun(Ef,z_cf) = sum(∫( z_cf*z_cf*Ef )*dΓ)
-    S__fun(Ef)      = sum(∫(           Ef )*dΓ)
-    L__fun = sum(∫(    1.0 )*dΓ)               
-    I__fun = sum(∫( z_cf*z_cf )*dΓ)            
-    
-    function step(z::Float64,z_val::Float64)
-      if z <= (z_val)
-        return 1.0
-      else
-        return 0.0
-      end
-    end
-    
-    step_field(z_cf,z_val) = CellField(step.(z_cf,z_val),Ω)
-    
-    da_fun(Ef,z_cf,z_val) = sum(∫(      step_field(z_cf,z_val)*Ef )*dΓ)
-    db_fun(Ef,z_cf,z_val) = sum(∫( z_cf*step_field(z_cf,z_val)*Ef )*dΓ)
+    Da_fun(Ef)    = sum(∫(       Ef )*dΓ)
+    Db_fun(Ef,zf) = sum(∫(    zf*Ef )*dΓ)
+    Dd_fun(Ef,zf) = sum(∫( zf*zf*Ef )*dΓ)
+    S__fun(Ef)    = sum(∫(       Ef )*dΓ)
+    L__fun = sum(∫(   1.0 )*dΓ)               
+    I__fun = sum(∫( zf*zf )*dΓ)
     
     Da = Da_fun(Ef)
-    Db = Db_fun(Ef,z_cf)
-    Dd = Dd_fun(Ef,z_cf)
-    da(z_val) = da_fun(Ef,z_cf,z_val)
-    db(z_val) = db_fun(Ef,z_cf,z_val)
+    Db = Db_fun(Ef,zf)
+    Dd = Dd_fun(Ef,zf)
     L  = L__fun
     I  = I__fun
 
-
-
-
-
-
-
-
-
-
-
-    return Intrf_Timoshenko(Γ,dΓ)    
+    return Intrf_Timoshenko(Γ,Ω,dΓ,Ef,zf,I,L,Da,Db,Dd)    
   end
 
   get_dofs(intrf::Intrf_Kinematic2D) = 2
@@ -94,11 +69,70 @@ module modInterface
     return Vλ, Uλ
   end
 
-  function contribute_matrix(intrf::Intrf_Kinematic2D, U_basis::MultiFieldCellField, V_basis::MultiFieldCellField,
+  function contribute_matrix(intrf::Intrf_Kinematic2D, U_basis, V_basis,
                                                        U_ind::Int64, V_ind::Int64)
     u = U_basis[U_ind]; v = V_basis[U_ind]
     λ = U_basis[V_ind]; μ = V_basis[V_ind]
     return ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
+  end
+
+  function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
+                                                      U_ind::Int64, V_ind::Int64)
+    get_i(i,x) = x[i]
+    
+    function step(z::Float64,z_val::Float64)
+      if z <= (z_val)
+        return 1.0
+      else
+        return 0.0
+      end
+    end
+
+    u = U_basis[U_ind]; v = V_basis[U_ind]
+    λ = U_basis[V_ind]; μ = V_basis[V_ind]
+    
+    #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
+    step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω)
+    
+    da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val)*Ef )*intrf.dΓ)
+    db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val)*Ef )*intrf.dΓ)
+    da(z_val) = da_fun(intrf.Ef,intrf.zf,z_val)
+    db(z_val) = db_fun(intrf.Ef,intrf.zf,z_val)
+
+    #a((U,u,θ,ω),(V,v,t,w)) = (L/Da)*(∫( v*(    (Ef)*(get_i∘(1,U⋅n_Γ)) ) )*dΓ) + 
+    #                         (L/Dd)*(∫( t*( (zf*Ef)*(get_i∘(1,U⋅n_Γ)) ) )*dΓ) + 
+    #                         (L/Dd)*(∫( w*(       (db∘zf)*(get_y∘(U)) ) )*dΓ) +
+    #                         (L/Da)*(∫( u*(    (Ef)*(get_i∘(1,V⋅n_Γ)) ) )*dΓ) +
+    #                         (L/Dd)*(∫( θ*( (zf*Ef)*(get_i∘(1,V⋅n_Γ)) ) )*dΓ) +
+    #                         (L/Dd)*(∫( ω*(       (db∘zf)*(get_y∘(V)) ) )*dΓ)
+    
+    function comp_c_arr_cf(cₚ,cₘ,cᵥ)
+        return TensorValue{3,2}(cₚ,cₘ,0.0,0.0,0.0,cᵥ) # [1,1] [2,1] [3,1] [1,2] ...
+    end
+
+    cₚ = (intrf.L/intrf.Da)*intrf.Ef
+    cₘ = (intrf.L/intrf.Dd)*intrf.zf*intrf.Ef
+    cᵥ = (intrf.L/intrf.Dd)*(db∘intrf.zf)
+
+    #function get_c_arr()
+    #  c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
+    #  return c_arr
+    #end
+
+    c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
+
+    return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓ
+    #return ∫( (λ⋅(get_c_arr()⋅v)) + (μ⋅(get_c_arr()⋅u)) )*intrf.dΓ
+  end
+
+  function print_info(intrf::Intrf_Timoshenko)
+    println("----------------------------")
+    println(intrf.Da)
+    println(intrf.Db)
+    println(intrf.Dd)
+    println(intrf.L )
+    println(intrf.I )
+    println("----------------------------")
   end
 
   function in_matrix(intrf::Intrf_Timoshenko, aΓ)
