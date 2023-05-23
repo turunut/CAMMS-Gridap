@@ -58,7 +58,7 @@ ct3 = modModel.computeCT(modlType, CT3)
 
 dimens  = 2
 #matFlag = ["mat_1", "mat_2", "mat_3"]
-matFlag = ["top", "mid", "low"]
+matFlag = ["low", "mid", "top"]
 
 tags = get_tags(matFlag, labels, dimens)
 
@@ -72,7 +72,7 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 #--------------------------------------------------
 
 
-boundary_left  = ["left"]
+boundary_left  = ["left","left_points"]
 #add_tag_from_tags!(labels,"wall_left",[7])
 Γa = BoundaryTriangulation(model,tags=boundary_left)
 boundary_right = ["right"]
@@ -81,9 +81,9 @@ boundary_right = ["right"]
 
 Ef = get_E_CellField([CT1, CT2, CT3], tags, Ω)
 
-dΓa = Measure(Γa,degree)
-Da_fun(Ef) = sum(∫( Ef )*dΓa)
-Da = Da_fun(Ef)
+#dΓa = Measure(Γa,degree)
+#Da_fun(Ecf) = sum(∫( Ecf )*dΓa)
+#Da = Da_fun(Ef)
 
 z_coord(x) = x[2]; zf = CellField(z_coord,Ω)
 intrfA = Intrf_Timoshenko(Γa, Ω, degree, Ef, zf)

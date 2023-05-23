@@ -26,7 +26,7 @@ module modSubroutines
       push!(listEs, getE(ct, [1.0, 0.0, 0.0]))
     end
     cts = CompressedArray(listEs, tags)
-    return CellField(cts,Ω)
+    return CellField(cts,Ω,PhysicalDomain())
   end
 
   ctˣ_ope(cf,p) = cf^p
