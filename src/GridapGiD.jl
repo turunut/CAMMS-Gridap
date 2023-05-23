@@ -135,14 +135,16 @@ module GridapGiD
   end
 
   function readSets(problemName::String, entities_lists::Vector{Vector{Set{Integer}}}, d_to_dface_to_entity::Vector{Vector{Integer}})
-    tag_to_name     = ["interior"]
-    tag_to_entities = [[1]       ]
-    ibody = 2
+    tag_to_name     = [] # = ["interior"]
+    tag_to_entities = [] # = [[1]       ]
+    ibody = 1
   
     open(problemName) do f
       while ! eof(f)
         
         splittedLine = readAndSplit(f)
+
+        max_imat = 0
 
         if splittedLine[1] == "set_definition"
           println("  Reading set.")
@@ -150,10 +152,17 @@ module GridapGiD
           while splittedLine[1] != "set_end"
             ielem = parse(Int, splittedLine[1])
             imat  = parse(Int, splittedLine[2])
+            max_imat = max(imat, max_imat)
             d_to_dface_to_entity[end][ielem] = imat
             splittedLine = readAndSplit(f)
           end
           println("  Finish reading set.")
+
+          for i=1:max_imat
+            push!(tag_to_name, "mat_" * string(i))
+            push!(tag_to_entities, [ibody])
+            ibody += 1
+          end
         end
 
         if splittedLine[1] == "tag_definition"

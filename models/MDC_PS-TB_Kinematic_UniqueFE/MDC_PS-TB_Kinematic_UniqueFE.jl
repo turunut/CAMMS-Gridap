@@ -103,17 +103,14 @@ f(x) = VectorValue(0.0,0.0)
 z_coord(x) = x[2]
 z_cf = CellField(z_coord,Ω)
 
-Uα = get_trial_fe_basis(U)
-Vα = get_fe_basis(V)
-
 aΩ((u,λ,α),(v,μ,β)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
 #aΓ((u,λ),(v,μ)) = ∫( get_x∘(λ)*(v⋅VectorValue(1.0,0.0)) + get_x∘(μ)*(u⋅VectorValue(1.0,0.0)) )*dΓ + 
 #                  ∫( get_y∘(λ)*(v⋅VectorValue(0.0,1.0)) + get_y∘(μ)*(u⋅VectorValue(0.0,1.0)) )*dΓ
 #aΓ((u,λ),(v,μ)) = ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
 
-aΓa((u,λ,α),(v,μ,β)) = contribute_matrix(intrfA, Uα, Vα, 1, 2)
-aΓb((u,λ,α),(v,μ,β)) = contribute_matrix(intrfB, Uα, Vα, 1, 3)
+aΓa((u,λ,α),(v,μ,β)) = contribute_matrix(intrfA, (u,λ,α),(v,μ,β), 1, 2)
+aΓb((u,λ,α),(v,μ,β)) = contribute_matrix(intrfB, (u,λ,α),(v,μ,β), 1, 3)
 
 a((u,λ,α),(v,μ,β)) = aΩ((u,λ,α),(v,μ,β)) + aΓa((u,λ,α),(v,μ,β)) + aΓb((u,λ,α),(v,μ,β))
 
