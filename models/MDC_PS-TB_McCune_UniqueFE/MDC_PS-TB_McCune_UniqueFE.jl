@@ -80,21 +80,15 @@ boundary_right = ["right"]
 Γb = BoundaryTriangulation(model,tags=boundary_right)
 
 Ef = get_E_CellField([CT1, CT2, CT3], tags, Ω)
-
-#dΓa = Measure(Γa,degree)
-#Da_fun(Ecf) = sum(∫( Ecf )*dΓa)
-#Da = Da_fun(Ef)
-
 z_coord(x) = x[2]; zf = CellField(z_coord,Ω)
+
 intrfA = Intrf_Timoshenko(Γa, Ω, degree, Ef, zf)
 intrfB = Intrf_Timoshenko(Γb, Ω, degree, Ef, zf)
 
-#intrfA = Intrf_Kinematic2D(Γa, degree)
-#intrfB = Intrf_Kinematic2D(Γb, degree)
 #--------------------------------------------------
 
 
-reffe   = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
+reffe = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
 
 Vu = TestFESpace(model,reffe;
                  conformity=:H1)
@@ -106,23 +100,9 @@ Vλb, Uλb = get_test_trial_spaces(intrfB, model)
 V = MultiFieldFESpace([Vu,Vλa,Vλb])
 U = MultiFieldFESpace([Uu,Uλa,Vλb])
 
-
 u,λ,_ = get_trial_fe_basis(U)
 v,μ,_ = get_fe_basis(U)
 
-#function f2(e1,e2,e3)
-#    return TensorValue{3,2}(e1,e2,0.0,0.0,0.0,e3)
-#end
-#
-#function f1(intrf)
-#    Da,Db,Dd,L = intrf.Da, intrf.Db, intrf.Dd, intrf.L
-#    Ef,zf = intrf.Ef, intrf.zf
-#
-#    E1 = Da
-#    E2 = (L/Dd)*zf*Ef
-#    E3 = (L/Dd)*Ef
-#    return E = f2∘(E1,E2,E3)
-#end
 
 #--------------------------------------------------
 

@@ -96,13 +96,6 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 # External forces
 f(x) = VectorValue(0.0,0.0)
 
-## Valor equivalent a l'integral
-#L_fun = sum(∫(1.0)*dΓ)                # Omega o Gamma
-#L     = L_fun
-
-z_coord(x) = x[2]
-z_cf = CellField(z_coord,Ω)
-
 aΩ((u,λ,α),(v,μ,β)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
 #aΓ((u,λ),(v,μ)) = ∫( get_x∘(λ)*(v⋅VectorValue(1.0,0.0)) + get_x∘(μ)*(u⋅VectorValue(1.0,0.0)) )*dΓ + 
@@ -116,7 +109,11 @@ a((u,λ,α),(v,μ,β)) = aΩ((u,λ,α),(v,μ,β)) + aΓa((u,λ,α),(v,μ,β)) + 
 
 ga(x) = VectorValue(0.0,1.0)
 gb(x) = VectorValue(0.0,0.0)
-l((v,μ,β)) = ∫(v⋅f)*dΩ + ∫(μ⋅ga)*intrfA.dΓ + ∫(β⋅gb)*intrfB.dΓ
+
+la((v,μ,β)) = contribute_vector(intrfA, (v,μ,β), 2, ga)
+lb((v,μ,β)) = contribute_vector(intrfB, (v,μ,β), 3, gb)
+
+l((v,μ,β)) = ∫(v⋅f)*dΩ + la((v,μ,β)) + lb((v,μ,β))
 
 
 #--------------------------------------------------
