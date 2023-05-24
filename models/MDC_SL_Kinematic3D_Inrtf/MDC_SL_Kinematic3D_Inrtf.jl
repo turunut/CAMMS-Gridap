@@ -83,51 +83,28 @@ intrf₁  = Intrf_Kinematic3D(Γ₁, int_coords, axis_id, face_B1_pos, degree)
 axis_id = 1; face_B2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf₂  = Intrf_Kinematic3D(Γ₂, int_coords, axis_id, face_B2_pos, degree)
 
-
-############################################################################################
-
-model_line₁, Λe₁ = get_line_model(intrf₁)
-model_line₂, Λe₂ = get_line_model(intrf₂)
+Λe₁ = get_line_model_triangulation(intrf₁)
+Λe₂ = get_line_model_triangulation(intrf₂)
 
 ############################################################################################
 # FESpaces 
 # Model 3D
 reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
-# Cares reduides
-reffe_λ₁ = ReferenceFE(lagrangian,VectorValue{3,Float64},0)
-reffe_λ₂ = ReferenceFE(lagrangian,VectorValue{3,Float64},0)
-# Model lneal
-reffe_e₁ = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
-reffe_e₂ = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 
 
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
 
 #Vλ_X0, Uλ_X0 = get_test_trial_spaces(intrf_X0, model)
-Vλ₁ = FESpace(intrf₁.Γc,reffe_λ₁,conformity=:L2)
-Vλ₂ = FESpace(intrf₂.Γc,reffe_λ₂,conformity=:L2)
-
-Uλ₁ = TrialFESpace(Vλ₁)
-Uλ₂ = TrialFESpace(Vλ₂)
+Vλ₁, Uλ₁ = get_test_trial_spaces(intrf₁)
+Vλ₂, Uλ₂ = get_test_trial_spaces(intrf₂)
 
 V = MultiFieldFESpace([Vu,Vλ₁,Vλ₂])
 U = MultiFieldFESpace([Uu,Uλ₁,Uλ₂])
 
 ## Models linea
-#
-Ve₁ = FESpace(Λe₁,reffe_e₁,conformity=:H1)
-Ve₂ = FESpace(Λe₂,reffe_e₂,conformity=:H1)
-Ue₁ = TrialFESpace(Ve₁)
-Ue₂ = TrialFESpace(Ve₂)
-
-# Dominis
-
-#dΓ_X0 = Measure(Γf_X0, degree)
-#dΓ_X1 = Measure(Γf_X1, degree)
-#
-#n_Γ_X0 = get_normal_vector(Γf_X0)
-#n_Γ_X1 = get_normal_vector(Γf_X1)
+Ve₁, Ue₁ = get_line_test_trial_spaces(intrf₁,Λe₁,order)
+Ve₂, Ue₂ = get_line_test_trial_spaces(intrf₂,Λe₂,order)
 
 #--------------------------------------------------
 
@@ -137,18 +114,13 @@ matFlag = []
 
 tags = get_tags(matFlag, labels, dimens)
 
-CTs = hcat(ct1) # Posem un sobre els altres [[CT₁],
-                #                            [CT₂],
-                #                            [CT₁]]
+CTs = hcat(ct1)
 
 CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
 
 #--------------------------------------------------
 
-
-tr_Γf₁(λ) = change_domain(λ,intrf₁.Γf,DomainStyle(λ))
-tr_Γf₂(λ) = change_domain(λ,intrf₂.Γf,DomainStyle(λ))
 
 _get_y(x) = VectorValue(x[2])
 function π_Λe_Γc(f::CellField, Γc::Triangulation)
@@ -161,30 +133,32 @@ end
 
 f = VectorValue(0.0,0.0,0.0)
 
-xe₁ = zero_free_values(Ue₁); xe₁[3] = 1.0
+xe₁ = zero_free_values(Ue₁); xe₁[7] = 1.0
 ue₁ = FEFunction(Ue₁,xe₁)
-ue_c₁ = π_Λe_Γc(ue₁, intrf₁.Γc)
+ue_c₁ = π_Λe_Γc(ue₁,intrf₁.Γc)
 
 xe₂ = zero_free_values(Ue₂)
 ue₂ = FEFunction(Ue₂,xe₂)
-ue_c₂ = π_Λe_Γc(ue₂, intrf₂.Γc)
+ue_c₂ = π_Λe_Γc(ue₂,intrf₂.Γc)
 
 z_coord(x) = x[3]
 z_cf = CellField(z_coord,Ω)
 
 aΩ((u,λ,α),(v,μ,β)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
-## Ordre 0
-aΓ₁((u,λ,α),(v,μ,β)) = ∫( tr_Γf₁(λ)⋅v )*intrf₁.dΓ + ∫( tr_Γf₁(μ)⋅u )*intrf₁.dΓ
-aΓ₂((u,λ,α),(v,μ,β)) = ∫( tr_Γf₂(α)⋅v )*intrf₂.dΓ + ∫( tr_Γf₂(β)⋅u )*intrf₂.dΓ
+
+
+aΓ₁((u,λ,α),(v,μ,β)) = contribute_matrix(intrf₁, (u,λ,α), (v,μ,β), 1, 2)
+aΓ₂((u,λ,α),(v,μ,β)) = contribute_matrix(intrf₂, (u,λ,α), (v,μ,β), 1, 3)
+
+la₁((v,μ,β)) = contribute_vector(intrf₁, (v,μ,β), 2, ue_c₁)
+la₂((v,μ,β)) = contribute_vector(intrf₂, (v,μ,β), 3, ue_c₂)
 
 a((u,λ,α),(v,μ,β))  =  aΩ((u,λ,α),(v,μ,β)) + 
                       aΓ₁((u,λ,α),(v,μ,β)) + 
                       aΓ₂((u,λ,α),(v,μ,β))
 
-l((v,μ,β)) = ∫(v⋅f)*dΩ + 
-             ∫(tr_Γf₁(μ)⋅ue_c₁)*intrf₁.dΓ + 
-             ∫(tr_Γf₂(β)⋅ue_c₂)*intrf₂.dΓ
+l((v,μ,β)) = ∫(v⋅f)*dΩ + la₁((v,μ,β)) + la₂((v,μ,β))
 
 A = assemble_matrix(a,U,V)
 b = assemble_vector(l,V)
