@@ -1,7 +1,7 @@
 module modInterface
   export create_interface, define_corse_fine_Γ, get_line_model
   export get_dofs, get_test_trial_spaces, contribute_matrix, contribute_vector, print_info
-  export get_line_model_triangulation
+  export get_line_model_triangulation, get_line_test_trial_spaces
   export Intrf_Timoshenko, Intrf_Kinematic2D
   export Intrf_Reissner,   Intrf_Kinematic3D
 

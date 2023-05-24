@@ -63,7 +63,7 @@ intrfB = Intrf_Kinematic2D(Γb, degree)
 #--------------------------------------------------
 
 
-reffe   = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
+reffe = ReferenceFE(lagrangian,VectorValue{2,Float64},order)
 
 Vu = TestFESpace(model,reffe;
                  conformity=:H1)

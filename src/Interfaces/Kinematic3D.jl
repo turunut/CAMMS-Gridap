@@ -38,9 +38,18 @@ function get_line_model_triangulation(intrf::Intrf_Kinematic3D)
   return Λe
 end
 
-function get_test_trial_spaces(intrf::Intrf_Kinematic3D, Γc, reffe_λ)
+function get_test_trial_spaces(intrf::Intrf_Kinematic3D)
   dofs = get_dofs(intrf)
-  Vλ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
+  reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
+  Vλ = FESpace(intrf.Γc,reffe,conformity=:L2)
+  Uλ = TrialFESpace(Vλ)
+  return Vλ, Uλ
+end
+
+function get_line_test_trial_spaces(intrf::Intrf_Kinematic3D, Λe,order)
+  dofs = get_dofs(intrf)
+  reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},order)
+  Vλ = FESpace(Λe,reffe,conformity=:H1)
   Uλ = TrialFESpace(Vλ)
   return Vλ, Uλ
 end
@@ -49,10 +58,12 @@ function contribute_matrix(intrf::Intrf_Kinematic3D, U_basis, V_basis,
                                                      U_ind::Int64, V_ind::Int64)
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
-  return ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
+  tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
+  return ∫( (tr_Γf(λ)⋅v) + (tr_Γf(μ)⋅u) )*intrf.dΓf
 end
 
 function contribute_vector(intrf::Intrf_Kinematic3D, V_basis, V_ind::Int64, f)
   μ = V_basis[V_ind]
-  return ∫( μ⋅f )*intrf.dΓ
+  tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
+  return ∫( tr_Γf(μ)⋅f )*intrf.dΓf
 end

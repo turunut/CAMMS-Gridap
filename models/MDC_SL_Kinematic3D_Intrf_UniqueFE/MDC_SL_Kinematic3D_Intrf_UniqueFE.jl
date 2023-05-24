@@ -11,10 +11,11 @@ using Gridap.CellData
 using modCT
 using modModel
 using modSubroutines
+using modInterface
 
 using FillArrays
 
-prblName = "MDC_SL_Kinematic3D_UniqueFE"
+prblName = "MDC_SL_Kinematic3D_IntUniqueFE"
 projFldr = pwd()
 
 order = 1
@@ -51,6 +52,7 @@ ct2 = modModel.computeCT(modlType, CT2)
 #--------------------------------------------------
 
 Ω  = Triangulation(model)
+dΩ = Measure(Ω,degree)
 
 #Γ  = BoundaryTriangulation(model,tags=["tag_26"]) # y-z, x = 1
 boundary_tags = ["tag_26"]
@@ -80,8 +82,6 @@ intrf  = Intrf_Kinematic3D(Γ, int_coords, axis_id, face_B1_pos, degree)
 # FESpaces 
 
 reffe_u = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
-reffe_λ = ReferenceFE(lagrangian,VectorValue{3,Float64},0)
-reffe_e = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 
 Vu = TestFESpace(Ω,reffe_u;
                  conformity=:H1,
@@ -90,21 +90,13 @@ Vu = TestFESpace(Ω,reffe_u;
 g1(x) = VectorValue(0.0,0.0,0.0)
 Uu = TrialFESpace(Vu,[g1])
 
-Vλ, Uλ = get_test_trial_spaces(intrfA, Γc, reffe_λ)
-
-Vλ = FESpace(Γc,reffe_λ,conformity=:L2)
-Uλ = TrialFESpace(Vλ)
+Vλ, Uλ = get_test_trial_spaces(intrf)
 
 U = MultiFieldFESpace([Uu,Uλ])
 V = MultiFieldFESpace([Vu,Vλ])
 
-Ve = FESpace(Λe,reffe_e,conformity=:H1)
-Ue = TrialFESpace(Ve)
+Ve, Ue = get_line_test_trial_spaces(intrf,Λe,order)
 
-dΩ = Measure(Ω,  degree)
-dΓ = Measure(Γf, degree)
-
-n_Γ = get_normal_vector(Γf)
 
 #--------------------------------------------------
 
@@ -114,9 +106,7 @@ matFlag = []
 
 tags = get_tags(matFlag, labels, dimens)
 
-CTs = hcat(ct1) # Posem un sobre els altres [[CT₁],
-                #                            [CT₂],
-                #                            [CT₁]]
+CTs = hcat(ct1)
 
 CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
@@ -124,10 +114,8 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 #--------------------------------------------------
 
 
-tr_Γf(λ) = change_domain(λ,Γf,DomainStyle(λ))
-
 _get_y(x) = VectorValue(x[2])
-function π_Λe_Γc(f::CellField)
+function π_Λe_Γc(f::CellField, Γc::Triangulation)
     _data = CellData.get_data(f)
     _cellmap = Fill(Broadcasting(_get_y),length(_data))
     data = lazy_map(∘,_data,_cellmap)
@@ -139,27 +127,26 @@ f = VectorValue(0.0,0.0,0.0)
 
 xe = zero_free_values(Ue); xe[16] = 1.0
 ue = FEFunction(Ue,xe)
-ue_c = π_Λe_Γc(ue)
+ue_c = π_Λe_Γc(ue,intrf.Γc)
 
 z_coord(x) = x[3]
 z_cf = CellField(z_coord,Ω)
 
+
 aΩ((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
-## Ordre 0
-aΓ((u,λ),(v,μ)) = ∫( tr_Γf(λ)⋅v )*dΓ + ∫( tr_Γf(μ)⋅u )*dΓ
-# Ordre 1
-#aΓ((u,λ),(v,μ)) = ∫( tr_Γf(λ)*(ctˣ(z_cf,1)*v⋅n_Γ) )*dΓ + ∫( tr_Γf(μ)*(ctˣ(z_cf,1)*u⋅n_Γ) )*dΓ
+aΓ((u,λ),(v,μ)) = contribute_matrix(intrf, (u,λ),(v,μ), 1, 2)
 
 a((u,λ),(v,μ))  = aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
 
-l((v,μ)) = ∫(v⋅f)*dΩ + 
-           ∫(tr_Γf(μ)⋅ue_c)*dΓ
 
-A = assemble_matrix(a,U,V)
-b = assemble_vector(l,V)
+la((v,μ)) = contribute_vector(intrf, (v,μ), 2, ue_c)
+
+l((v,μ)) = ∫(v⋅f)*dΩ + la((v,μ))
+
 
 ##--------------------------------------------------
+
 
 op = AffineFEOperator(a,l,U,V)
 
