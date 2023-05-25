@@ -83,9 +83,6 @@ intrf₁  = Intrf_Kinematic3D(Γ₁, int_coords, axis_id, face_B1_pos, degree)
 axis_id = 1; face_B2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf₂  = Intrf_Kinematic3D(Γ₂, int_coords, axis_id, face_B2_pos, degree)
 
-Λe₁ = get_line_model_triangulation(intrf₁)
-Λe₂ = get_line_model_triangulation(intrf₂)
-
 ############################################################################################
 # FESpaces 
 # Model 3D
@@ -103,8 +100,8 @@ V = MultiFieldFESpace([Vu,Vλ₁,Vλ₂])
 U = MultiFieldFESpace([Uu,Uλ₁,Uλ₂])
 
 ## Models linea
-Ve₁, Ue₁ = get_line_test_trial_spaces(intrf₁,Λe₁,order)
-Ve₂, Ue₂ = get_line_test_trial_spaces(intrf₂,Λe₂,order)
+Ve₁, Ue₁ = get_line_test_trial_spaces(intrf₁,order)
+Ve₂, Ue₂ = get_line_test_trial_spaces(intrf₂,order)
 
 #--------------------------------------------------
 

@@ -15,7 +15,7 @@ using modInterface
 
 using FillArrays
 
-prblName = "MDC_SL_Kinematic3D_IntUniqueFE"
+prblName = "MDC_SL_Kinematic3D_Intrf_UniqueFE"
 projFldr = pwd()
 
 order = 1
@@ -76,8 +76,6 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 axis_id = 1; face_B1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf  = Intrf_Kinematic3D(Γ, int_coords, axis_id, face_B1_pos, degree)
 
-Λe = get_line_model_triangulation(intrf)
-
 ############################################################################################
 # FESpaces 
 
@@ -95,7 +93,7 @@ Vλ, Uλ = get_test_trial_spaces(intrf)
 U = MultiFieldFESpace([Uu,Uλ])
 V = MultiFieldFESpace([Vu,Vλ])
 
-Ve, Ue = get_line_test_trial_spaces(intrf,Λe,order)
+Ve, Ue = get_line_test_trial_spaces(intrf,order)
 
 
 #--------------------------------------------------
