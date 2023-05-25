@@ -107,8 +107,8 @@ aΓb((u,λ,α),(v,μ,β)) = contribute_matrix(intrfB, (u,λ,α),(v,μ,β), 1, 3)
 
 a((u,λ,α),(v,μ,β)) = aΩ((u,λ,α),(v,μ,β)) + aΓa((u,λ,α),(v,μ,β)) + aΓb((u,λ,α),(v,μ,β))
 
-ga(x) = VectorValue(0.0,1.0)
-gb(x) = VectorValue(0.0,0.0)
+ga(x) = VectorValue(1.0,-0.5)
+gb(x) = VectorValue(3.0,2.0)
 
 la((v,μ,β)) = contribute_vector(intrfA, (v,μ,β), 2, ga)
 lb((v,μ,β)) = contribute_vector(intrfB, (v,μ,β), 3, gb)

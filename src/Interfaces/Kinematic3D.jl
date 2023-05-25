@@ -11,6 +11,8 @@ struct Intrf_Kinematic3D <: inter3D
   
   Λe::Triangulation # line model
 
+  rot_arr::CellField
+
   fix_axis::Int64
   pos_axis::Int64
   glue::Any
@@ -27,8 +29,9 @@ function Intrf_Kinematic3D(Γ, int_coords::Vector{VectorValue{3, Int64}}, fix_ax
   dΓf = Measure(Γf,degree)
 
   Λe = get_line_model_triangulation(c2f_faces)
+  rot_arr = get_rot_arr(Γ)
 
-  return Intrf_Kinematic3D(Γ, dΓ, Γc, dΓc, Γf, dΓf, Λe, fix_axis, pos_axis, glue, c2f_faces)
+  return Intrf_Kinematic3D(Γ, dΓ, Γc, dΓc, Γf, dΓf, Λe, rot_arr, fix_axis, pos_axis, glue, c2f_faces)
 end
 
 function define_corse_fine_triangulation(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64)
@@ -73,4 +76,18 @@ function contribute_vector(intrf::Intrf_Kinematic3D, V_basis, V_ind::Int64, f)
   μ = V_basis[V_ind]
   tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
   return ∫( tr_Γf(μ)⋅f )*intrf.dΓf
+end
+
+
+
+
+function get_arr_g2l_3D(n̂::VectorValue{3, Float64})
+  n̂ *= sign(n̂[1])
+  arr_g2l = TensorValue{3,3}( n̂[1], -n̂[2], 0, n̂[2], n̂[1], 0,     0,0,1 )
+  return arr_g2l
+end
+
+function get_rot_arr(Γ::Triangulation{2})
+    n̂ = get_normal_vector(Γ)
+    return CellField(get_arr_g2l_3D∘(n̂),Γ)
 end
