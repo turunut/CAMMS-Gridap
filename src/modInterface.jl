@@ -30,10 +30,10 @@ module modInterface
     fix_axis::Int64
     pos_axis::Int64
     glue::Any
-    c2f_faces::Table
+    c2f_faces::Any
   end
-  function Intrf_Reissner(Γ_3D::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, fix_axis::Int64, pos_axis::Int64)
-    glue, c2f_faces = create_interface(Γ_3D, int_coords, fix_axis, pos_axis)
+  function Intrf_Reissner(Γ_3D::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, fix_axis::Int64, pos_axis::Int64, inv::Bool)
+    glue, c2f_faces = create_interface(Γ_3D, int_coords, fix_axis, pos_axis, inv)
     return Intrf_Reissner(Γ_3D, fix_axis, pos_axis, glue, c2f_faces)
   end
 
@@ -49,15 +49,21 @@ module modInterface
     return Vλ, Uλ
   end
 
-  function define_corse_fine_triangulation(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64)
-    glue, c2f_faces = create_interface(Γ, int_coords, axis_id, axis_int_coord)
-    cface_model = CartesianDiscreteModel((0,1,0,1),(length(c2f_faces),1))
-    Γc  = Triangulation(cface_model)
-    Γf  = Adaptivity.GluedTriangulation(Γ,Γc,glue)
-    return c2f_faces, cface_model, Γc, Γf
+  ##function define_corse_fine_triangulation(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64)
+  ##  glue, c2f_faces = create_interface(Γ, int_coords, axis_id, axis_int_coord)
+  ##  cface_model = CartesianDiscreteModel((0,1,0,1),(length(c2f_faces),1))
+  ##  Γc  = Triangulation(cface_model)
+  ##  Γf  = Adaptivity.GluedTriangulation(Γ,Γc,glue)
+  ##  return c2f_faces, cface_model, Γc, Γf
+  ##end
+
+  function get_line_model(intrf::interface)
+    line_model = CartesianDiscreteModel((0,1),(length(intrf.c2f_faces)))
+    Λe = Triangulation(line_model)
+    return line_model, Λe
   end
   
-  function get_line_model_triangulation(c2f_faces::Table)
+  function get_line_model_triangulation(c2f_faces)
     line_model = CartesianDiscreteModel((0,1),(length(c2f_faces)))
     Λe = Triangulation(line_model)
     return Λe
@@ -98,13 +104,7 @@ module modInterface
     return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓ
   end
 
-  function get_line_model(intrf::interface)
-    line_model = CartesianDiscreteModel((0,1),(length(intrf.c2f_faces)))
-    Λe = Triangulation(line_model)
-    return line_model, Λe
-  end
-
-  function create_interface(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64)
+  function create_interface(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64, inv::Bool)
     axis_p = [2,1][axis_id] # retorna laxis perpendicular al entrat
     println(axis_p)
     face_x = axis_int_coord
@@ -119,6 +119,10 @@ module modInterface
     perm = sortperm(interface_coords,by=x->x[axis_p])
     data = lazy_map(Reindex(interface_faces),perm)
     c2f_faces = Table(data,y_ptrs)
+
+    if inv
+      c2f_faces = reverse(c2f_faces)
+    end
     
     n2o_cells = zeros(Int, length(Γ.glue.face_to_bgface))
     child_ids = zeros(Int, length(Γ.glue.face_to_bgface))

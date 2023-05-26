@@ -16,11 +16,11 @@ struct Intrf_Kinematic3D <: inter3D
   fix_axis::Int64
   pos_axis::Int64
   glue::Any
-  c2f_faces::Table
+  c2f_faces::Any
 end
-function Intrf_Kinematic3D(Γ, int_coords::Vector{VectorValue{3, Int64}}, fix_axis::Int64, pos_axis::Int64, degree::Int64)
+function Intrf_Kinematic3D(Γ, int_coords::Vector{VectorValue{3, Int64}}, fix_axis::Int64, pos_axis::Int64, degree::Int64, inv::Bool)
   dΓ = Measure(Γ,degree)
-  glue, c2f_faces = create_interface(Γ, int_coords, fix_axis, pos_axis)
+  glue, c2f_faces = create_interface(Γ, int_coords, fix_axis, pos_axis, inv)
 
   cface_model = CartesianDiscreteModel((0,1,0,1),(length(c2f_faces),1))
   Γc  = Triangulation(cface_model)
@@ -63,8 +63,6 @@ function contribute_vector(intrf::Intrf_Kinematic3D, V_basis, V_ind::Int64, f)
   tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
   return ∫( tr_Γf(μ)⋅f )*intrf.dΓf
 end
-
-
 
 function get_rot_arr(Γ::Triangulation{2})
   n̂ = get_normal_vector(Γ)

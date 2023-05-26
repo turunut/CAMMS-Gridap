@@ -77,10 +77,10 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 ############################################################################################
 
 axis_id = 2; face_B1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₁  = Intrf_Kinematic3D(Γ₁, int_coords, axis_id, face_B1_pos, degree)
+intrf₁  = Intrf_Kinematic3D(Γ₁, int_coords, axis_id, face_B1_pos, degree, true)
 
 axis_id = 1; face_B2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₂  = Intrf_Kinematic3D(Γ₂, int_coords, axis_id, face_B2_pos, degree)
+intrf₂  = Intrf_Kinematic3D(Γ₂, int_coords, axis_id, face_B2_pos, degree, false)
 
 ############################################################################################
 # FESpaces 
@@ -129,7 +129,7 @@ end
 
 f = VectorValue(0.0,0.0,0.0)
 
-xe₁ = zero_free_values(Ue₁); xe₁[20] = 1.0
+xe₁ = zero_free_values(Ue₁); xe₁[1] = 1.0
 ue₁ = FEFunction(Ue₁,xe₁)
 ue_c₁ = π_Λe_Γc(ue₁,intrf₁.Γc)
 
@@ -150,9 +150,9 @@ aΓ₂((u,λ,α),(v,μ,β)) = contribute_matrix(intrf₂, (u,λ,α), (v,μ,β), 
 la₁((v,μ,β)) = contribute_vector(intrf₁, (v,μ,β), 2, ue_c₁)
 la₂((v,μ,β)) = contribute_vector(intrf₂, (v,μ,β), 3, ue_c₂)
 
-a((u,λ,α),(v,μ,β))  =  aΩ((u,λ,α),(v,μ,β)) + 
-                      aΓ₁((u,λ,α),(v,μ,β)) + 
-                      aΓ₂((u,λ,α),(v,μ,β))
+a((u,λ,α),(v,μ,β)) =  aΩ((u,λ,α),(v,μ,β)) + 
+                     aΓ₁((u,λ,α),(v,μ,β)) + 
+                     aΓ₂((u,λ,α),(v,μ,β))
 
 l((v,μ,β)) = ∫(v⋅f)*dΩ + la₁((v,μ,β)) + la₂((v,μ,β))
 
