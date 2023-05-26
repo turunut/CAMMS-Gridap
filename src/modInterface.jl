@@ -22,37 +22,7 @@ module modInterface
 
   include("Interfaces/Kinematic2D.jl")
   include("Interfaces/Kinematic3D.jl")
-  
-  struct Intrf_Timoshenko <: inter2D
-    Γ::Triangulation
-    Ω::Triangulation
-    dΓ::Measure
-    Ef::CellField
-    zf::CellField
-    I::Float64
-    L::Float64
-    Da::Float64
-    Db::Float64
-    Dd::Float64
-  end
-  function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, Ef::CellField, zf::CellField)
-    dΓ = Measure(Γ,degree)
-    
-    Da_fun(Ef)    = sum(∫(       Ef )*dΓ)
-    Db_fun(Ef,zf) = sum(∫(    zf*Ef )*dΓ)
-    Dd_fun(Ef,zf) = sum(∫( zf*zf*Ef )*dΓ)
-    S__fun(Ef)    = sum(∫(       Ef )*dΓ)
-    L__fun = sum(∫(   1.0 )*dΓ)               
-    I__fun = sum(∫( zf*zf )*dΓ)
-    
-    Da = Da_fun(Ef)
-    Db = Db_fun(Ef,zf)
-    Dd = Dd_fun(Ef,zf)
-    L  = L__fun
-    I  = I__fun
-
-    return Intrf_Timoshenko(Γ,Ω,dΓ,Ef,zf,I,L,Da,Db,Dd)    
-  end
+  include("Interfaces/Timoshenko.jl")
 
   struct Intrf_Reissner <: inter3D
     Γ_3D::Triangulation
@@ -78,40 +48,18 @@ module modInterface
     return Vλ, Uλ
   end
 
-  function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
-                                                      U_ind::Int64, V_ind::Int64)
-    get_i(i,x) = x[i]
-    
-    function step(z::Float64,z_val::Float64)
-      if z <= (z_val)
-        return 1.0
-      else
-        return 0.0
-      end
-    end
-
-    u = U_basis[U_ind]; v = V_basis[U_ind]
-    λ = U_basis[V_ind]; μ = V_basis[V_ind]
-    
-    #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
-    step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω)
-    
-    da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val)*Ef )*intrf.dΓ)
-    db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val)*Ef )*intrf.dΓ)
-    da(z_val) = da_fun(intrf.Ef,intrf.zf,z_val)
-    db(z_val) = db_fun(intrf.Ef,intrf.zf,z_val)
-    
-    function comp_c_arr_cf(cₚ,cₘ,cᵥ)
-        return TensorValue{3,2}(cₚ,cₘ,0.0,0.0,0.0,cᵥ) # [1,1] [2,1] [3,1] [1,2] ...
-    end
-
-    cₚ = (intrf.L/intrf.Da)*intrf.Ef
-    cₘ = (intrf.L/intrf.Dd)*intrf.zf*intrf.Ef
-    cᵥ = (intrf.L/intrf.Dd)*(db∘intrf.zf)
-
-    c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
-
-    return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓ
+  function define_corse_fine_triangulation(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64)
+    glue, c2f_faces = create_interface(Γ, int_coords, axis_id, axis_int_coord)
+    cface_model = CartesianDiscreteModel((0,1,0,1),(length(c2f_faces),1))
+    Γc  = Triangulation(cface_model)
+    Γf  = Adaptivity.GluedTriangulation(Γ,Γc,glue)
+    return c2f_faces, cface_model, Γc, Γf
+  end
+  
+  function get_line_model_triangulation(c2f_faces::Table)
+    line_model = CartesianDiscreteModel((0,1),(length(c2f_faces)))
+    Λe = Triangulation(line_model)
+    return Λe
   end
 
   function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis,
@@ -147,21 +95,6 @@ module modInterface
     c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
 
     return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓ
-  end
-
-  function print_info(intrf::Intrf_Timoshenko)
-    println("----------------------------")
-    println(intrf.Da)
-    println(intrf.Db)
-    println(intrf.Dd)
-    println(intrf.L )
-    println(intrf.I )
-    println("----------------------------")
-  end
-
-  function in_matrix(intrf::Intrf_Timoshenko, aΓ)
-    aΓ = ∫( (λ⋅v) + (μ⋅u) )*intrf.dΓ
-    return aΓ
   end
 
   function get_line_model(intrf::interface)

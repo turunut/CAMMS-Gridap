@@ -22,13 +22,15 @@ function contribute_vector(intrf::Intrf_Kinematic2D, V_basis, V_ind::Int64, f)
   return ∫( μ⋅(intrf.rot_cf⋅f) )*intrf.dΓ
 end
 
-function get_arr_g2l_2D(n̂::CellField)
+
+
+function get_rot_arr(Γ::Triangulation{1})
+  n̂ = get_normal_vector(Γ)
+  return CellField(get_arr_g2l_2D∘(n̂),Γ)
+end
+function get_arr_g2l_2D(n̂::VectorValue{2, Float64})
   arr_g2l = TensorValue{2,2}( n̂[1], -n̂[2], n̂[2], n̂[1] ) * sign(n̂[1])
   return arr_g2l
 end
 
-function get_rot_arr(Γ::Triangulation{1})
-    n̂ = get_normal_vector(Γ)
-    return CellField(get_arr_g2l_2D∘(n̂),Γ)
-end
 

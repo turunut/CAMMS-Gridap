@@ -1,10 +1,4 @@
 
-#Exemple LINEAR ELASTIC generant malla / Dirichelt
-#
-#Exemple Linear elastic en que generem un model cuadrat de forma
-#procedural, el mallem i definim condicions de Dirichlet imposant
-#desplacaments als seus extrems esquerra i dret.
-
 push!(LOAD_PATH, pwd()*"/src")
 push!(LOAD_PATH, pwd()*"/src/Materials")
 
@@ -85,6 +79,13 @@ z_coord(x) = x[2]; zf = CellField(z_coord,Ω)
 intrfA = Intrf_Timoshenko(Γa, Ω, degree, Ef, zf)
 intrfB = Intrf_Timoshenko(Γb, Ω, degree, Ef, zf)
 
+ptsA = get_cell_points(intrfA.Γ)
+print(intrfA.rot_cf(ptsA)[1][1])
+
+ptsB = get_cell_points(intrfB.Γ)
+print(intrfB.rot_cf(ptsB)[1][1])
+
+
 #--------------------------------------------------
 
 
@@ -126,8 +127,14 @@ a((u,λ,α),(v,μ,β)) = aΩ((u,λ,α),(v,μ,β)) + aΓa((u,λ,α),(v,μ,β)) + 
 
 ga(x) = VectorValue(0.0,0.0,0.0)
 gb(x) = VectorValue(1.0,0.0,0.0)
-l((v,μ,β)) = ∫(v⋅f)*dΩ + ∫(μ⋅ga)*intrfA.dΓ + ∫(β⋅gb)*intrfB.dΓ
 
+la((v,μ,β)) = contribute_vector(intrfA, (v,μ,β), 2, ga)
+lb((v,μ,β)) = contribute_vector(intrfB, (v,μ,β), 3, gb)
+
+l((v,μ,β)) = ∫(v⋅f)*dΩ + la((v,μ,β)) + lb((v,μ,β))
+
+#A = assemble_matrix(a,U,V)
+#B = assemble_vector(l,V)
 
 #--------------------------------------------------
 

@@ -19,7 +19,7 @@ using FillArrays
 prblName = "MDC_SL_Kinematic3D_Inrtf_SuperElement"
 projFldr = pwd()
 
-order = 1
+order = 2
 degree = 2*order
 
 ############################################################################################
@@ -129,11 +129,11 @@ end
 
 f = VectorValue(0.0,0.0,0.0)
 
-xe₁ = zero_free_values(Ue₁); xe₁[4] = 1.0
+xe₁ = zero_free_values(Ue₁); xe₁[20] = 1.0
 ue₁ = FEFunction(Ue₁,xe₁)
 ue_c₁ = π_Λe_Γc(ue₁,intrf₁.Γc)
 
-xe₂ = zero_free_values(Ue₂)
+xe₂ = zero_free_values(Ue₂); xe₂[13] = 0.0
 ue₂ = FEFunction(Ue₂,xe₂)
 ue_c₂ = π_Λe_Γc(ue₂,intrf₂.Γc)
 
