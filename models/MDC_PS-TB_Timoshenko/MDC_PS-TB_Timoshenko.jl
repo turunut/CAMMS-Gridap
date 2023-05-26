@@ -17,7 +17,7 @@ using modSubroutines
 using Gridap.TensorValues
 using Gridap.Arrays
 
-prblName = "MDC_PS-TB_McCune_Isolated_ML"
+prblName = "MDC_PS-TB_Timoshenko"
 projFldr = pwd()
 
 model = GmshDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName*".msh" )
@@ -55,7 +55,8 @@ VU = TestFESpace(model,reffe;
                  dirichlet_masks=[(true,true), (true,true)])
 Vu = ConstantFESpace(model)
 Vθ = ConstantFESpace(model)
-V = MultiFieldFESpace([VU,Vu,Vθ])
+Vω = ConstantFESpace(model)
+V = MultiFieldFESpace([VU,Vu,Vθ,Vω])
 
 g1(x) = VectorValue(0.0,0.0)
 g2(x) = VectorValue(0.1,0.0)
@@ -63,7 +64,8 @@ g2(x) = VectorValue(0.1,0.0)
 UU = TrialFESpace(VU,[g1,g1])
 Uu = TrialFESpace(Vu)
 Uθ = TrialFESpace(Vθ)
-U   = MultiFieldFESpace([UU,Uu,Uθ])
+Uω = TrialFESpace(Vω)
+U   = MultiFieldFESpace([UU,Uu,Uθ,Uω])
 
 
 #--------------------------------------------------
@@ -84,7 +86,7 @@ dΩ = Measure(Ω,degree)
 
 
 dimens  = 2
-matFlag = ["low", "mid", "top"]
+matFlag = ["top", "mid", "low"]
 
 tags = get_tags(matFlag, labels, dimens)
 
@@ -102,6 +104,7 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 f(x) = VectorValue(0.0,0.0)
 u_beam(x) = 1.0
 θ_beam(x) = 0.0
+ω_beam(x) = 0.0
 
 get_x(x) = x[1]
 get_y(x) = x[2]
@@ -138,23 +141,21 @@ da(z_val) = da_fun(Ef,z_cf,z_val)
 db(z_val) = db_fun(Ef,z_cf,z_val)
 L  = L__fun
 I  = I__fun
-Dinv = 1/((Dd*Da)-(Db^2))
 
-#for i=-5:0.25:5
-#  println(i, " ", da(i))
-#end
-#
-#for i=-5:0.25:5
-#  println(i, " ", db(i))
-#end
+for i=-5:0.25:5
+  println(i, " ", da(i))
+end
 
-a((U,u,θ),(V,v,t)) =           ∫( ∂(V) ⊙ σ(CTf[1],∂(U) ) )*dΩ  + 
-                     (L*Dinv)*(∫( v*( (+Dd)*(Ef)*(get_x∘(U⋅n_Γ)) + (-Db)*(z_cf*Ef)*(get_x∘(U⋅n_Γ)) ) )*dΓ) +
-                     (L*Dinv)*(∫( u*( (+Dd)*(Ef)*(get_x∘(V⋅n_Γ)) + (-Db)*(z_cf*Ef)*(get_x∘(V⋅n_Γ)) ) )*dΓ) + 
-                     (L*Dinv)*(∫( t*( (-Dd)*(Ef)*(get_x∘(U⋅n_Γ)) + (+Da)*(z_cf*Ef)*(get_x∘(U⋅n_Γ)) ) )*dΓ) +
-                     (L*Dinv)*(∫( θ*( (-Dd)*(Ef)*(get_x∘(V⋅n_Γ)) + (+Da)*(z_cf*Ef)*(get_x∘(V⋅n_Γ)) ) )*dΓ)
+for i=-5:0.25:5
+  println(i, " ", db(i))
+end
 
-l((V,v,t)) = ∫(f⋅V)*dΩ + ∫(u_beam*v)*dΓ + ∫(θ_beam*t)*dΓ
+a((U,u,θ,ω),(V,v,t,w)) =         ∫(          ∂(V) ⊙ σ(CTf[1],∂(U) ) )*dΩ  + (L/Da)*(∫( v*( (Ef)*(get_x∘(U⋅n_Γ)) ) )*dΓ) + (L/Dd)*(∫( t*( (z_cf*Ef)*(get_x∘(U⋅n_Γ)) ) )*dΓ) + (L/Dd)*(∫( w*( (db∘z_cf)*(get_y∘U) ) )*dΓ) +
+                         (L/Da)*(∫( u*(      (Ef)*(get_x∘(V⋅n_Γ)) ) )*dΓ) +
+                         (L/Dd)*(∫( θ*( (z_cf*Ef)*(get_x∘(V⋅n_Γ)) ) )*dΓ) +
+                         (L/Dd)*(∫( ω*(     (db∘z_cf)*(get_y∘(V)) ) )*dΓ)
+
+l((V,v,t,w)) = ∫(f⋅V)*dΩ + ∫(u_beam*v)*dΓ + ∫(θ_beam*t)*dΓ + ∫(ω_beam*w)*dΓ
 
 
 #--------------------------------------------------
@@ -169,6 +170,8 @@ sol = solve(op)
 
 Uh = sol.single_fe_functions[1]
 uh = sol.single_fe_functions[2]
+θh = sol.single_fe_functions[3]
+ωh = sol.single_fe_functions[4]
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>Uh,
                      "ε"=>∂(Uh),

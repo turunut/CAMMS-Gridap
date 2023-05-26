@@ -1,5 +1,5 @@
 module modSubroutines
-  export get_tags, get_E_CellField, ctˣ
+  export get_tags, get_E_CellField, ctˣ, step_field
 
   using Gridap.Geometry
   using Gridap.Arrays
@@ -33,5 +33,17 @@ module modSubroutines
   function ctˣ(cf::CellField,p::Integer)
     return Operation(ctˣ_ope)(cf,p)
   end
+  
+  function step(z::Float64,z_val::Float64)
+    if z <= (z_val)
+      return 1.0
+    else
+      return 0.0
+    end
+  end
+  
+  function step_field(zf::CellField,z_val::Float64,Ω::Triangulation)
+    return CellField(step.(zf,z_val),Ω,PhysicalDomain())
+  end 
 
 end

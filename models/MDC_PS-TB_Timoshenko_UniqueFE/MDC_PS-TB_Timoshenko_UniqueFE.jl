@@ -13,7 +13,7 @@ using modInterface
 using Gridap.TensorValues
 using Gridap.Arrays
 
-prblName = "MDC_PS-TB_McCune_UniqueFE"
+prblName = "MDC_PS-TB_Timoshenko_UniqueFE"
 projFldr = pwd()
 
 model = GmshDiscreteModel( projFldr*"/models/"*prblName*"/"*prblName*".msh" )
@@ -69,7 +69,7 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 boundary_left  = ["left","left_points"]
 #add_tag_from_tags!(labels,"wall_left",[7])
 Γa = BoundaryTriangulation(model,tags=boundary_left)
-boundary_right = ["right"]
+boundary_right = ["right","right_points"]
 #add_tag_from_tags!(labels,"wall_right",[8])
 Γb = BoundaryTriangulation(model,tags=boundary_right)
 
@@ -79,11 +79,14 @@ z_coord(x) = x[2]; zf = CellField(z_coord,Ω)
 intrfA = Intrf_Timoshenko(Γa, Ω, degree, Ef, zf)
 intrfB = Intrf_Timoshenko(Γb, Ω, degree, Ef, zf)
 
-ptsA = get_cell_points(intrfA.Γ)
-print(intrfA.rot_cf(ptsA)[1][1])
+#ptsA = get_cell_points(intrfA.Γ)
+#print(intrfA.rot_cf(ptsA)[1][1])
+#
+#ptsB = get_cell_points(intrfB.Γ)
+#print(intrfB.rot_cf(ptsB)[1][1])
 
-ptsB = get_cell_points(intrfB.Γ)
-print(intrfB.rot_cf(ptsB)[1][1])
+#grid = get_grid(intrfA.Γ)
+# findall( x -> x>maxMin[1,1]-tolerance, arrayCoords[:,1])
 
 
 #--------------------------------------------------
@@ -126,7 +129,7 @@ aΓb((u,λ,α),(v,μ,β)) = contribute_matrix(intrfB, (u,λ,α), (v,μ,β), 1, 3
 a((u,λ,α),(v,μ,β)) = aΩ((u,λ,α),(v,μ,β)) + aΓa((u,λ,α),(v,μ,β)) + aΓb((u,λ,α),(v,μ,β))
 
 ga(x) = VectorValue(0.0,0.0,0.0)
-gb(x) = VectorValue(1.0,0.0,0.0)
+gb(x) = VectorValue(0.0,0.0,1.0)
 
 la((v,μ,β)) = contribute_vector(intrfA, (v,μ,β), 2, ga)
 lb((v,μ,β)) = contribute_vector(intrfB, (v,μ,β), 3, gb)

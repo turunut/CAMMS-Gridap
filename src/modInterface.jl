@@ -11,6 +11,7 @@ module modInterface
   using Gridap.Adaptivity
   using Gridap.CellData
   using Gridap.MultiField
+  using modSubroutines
   using FillArrays
 
   abstract type interface end

@@ -11,6 +11,8 @@ struct Intrf_Timoshenko <: inter2D
   Da::Float64
   Db::Float64
   Dd::Float64
+  Dinv::Float64
+  Ainv::Float64
 end
 function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, Ef::CellField, zf::CellField)
   dΓ = Measure(Γ,degree)
@@ -25,34 +27,42 @@ function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, E
   Da = Da_fun(Ef)
   Db = Db_fun(Ef,zf)
   Dd = Dd_fun(Ef,zf)
+  Dinv = 1.0/(Dd*Da-Db^2)
+
+  da(z_val) = sum(∫(    step_field(zf,z_val,Ω)*Ef )*dΓ)
+  db(z_val) = sum(∫( zf*step_field(zf,z_val,Ω)*Ef )*dΓ)
+  Aa = sum( ∫( da∘(zf) )*dΓ )
+  Ab = sum( ∫( db∘(zf) )*dΓ )
+  Ainv = 1.0/(Ab*Da-Aa*Db)
+
   L  = L__fun
   I  = I__fun
   
   rot_cf = get_rot_arr(Γ)
 
-  return Intrf_Timoshenko(Γ,Ω,dΓ,rot_cf,Ef,zf,I,L,Da,Db,Dd)    
+  return Intrf_Timoshenko(Γ,Ω,dΓ,rot_cf,Ef,zf,I,L,Da,Db,Dd,Dinv,Ainv)    
 end
 
 function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
   U_ind::Int64, V_ind::Int64)
   get_i(i,x) = x[i]
   
-  function step(z::Float64,z_val::Float64)
-  if z <= (z_val)
-  return 1.0
-  else
-  return 0.0
-  end
-  end
+  #function step(z::Float64,z_val::Float64)
+  #  if z <= (z_val)
+  #    return 1.0
+  #  else
+  #    return 0.0
+  #  end
+  #end
   
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
   
-  #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
-  step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω,PhysicalDomain())
+  ##step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
+  #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω,PhysicalDomain())
   
-  da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val)*Ef )*intrf.dΓ)
-  db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val)*Ef )*intrf.dΓ)
+  da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf.Ω)*Ef )*intrf.dΓ)
+  db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Ω)*Ef )*intrf.dΓ)
   da(z_val) = da_fun(intrf.Ef,intrf.zf,z_val)
   db(z_val) = db_fun(intrf.Ef,intrf.zf,z_val)
   
@@ -60,9 +70,9 @@ function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
     return TensorValue{3,2}(cₚ,cₘ,0.0,0.0,0.0,cᵥ) # [1,1] [2,1] [3,1] [1,2] ...
   end
   
-  cₚ = (intrf.L/intrf.Da)*intrf.Ef
-  cₘ = (intrf.L/intrf.Dd)*intrf.zf*intrf.Ef
-  cᵥ = (intrf.L/intrf.Dd)*(db∘intrf.zf)
+  cₚ = (intrf.L*intrf.Dinv)*(   intrf.Dd*intrf.Ef      - intrf.Db*intrf.zf*intrf.Ef )
+  cₘ = (intrf.L*intrf.Dinv)*( - intrf.Db*intrf.Ef      + intrf.Da*intrf.zf*intrf.Ef )
+  cᵥ = (intrf.L*intrf.Ainv)*(   intrf.Db*(da∘intrf.zf) - intrf.Da*(db∘intrf.zf)     )
   
   c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
   
