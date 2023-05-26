@@ -129,7 +129,7 @@ end
 
 f = VectorValue(0.0,0.0,0.0)
 
-xe₁ = zero_free_values(Ue₁); xe₁[1] = 1.0
+xe₁ = zero_free_values(Ue₁); xe₁[4] = 1.0
 ue₁ = FEFunction(Ue₁,xe₁)
 ue_c₁ = π_Λe_Γc(ue₁,intrf₁.Γc)
 
@@ -161,7 +161,8 @@ b = assemble_vector(l,V)
 
 ##--------------------------------------------------
 
-op = AffineFEOperator(a,l,U,V)
+#op = AffineFEOperator(a,l,U,V)
+op = AffineFEOperator(U,V,A,b)
 
 ls = LUSolver()
 solver = LinearFESolver(ls)
