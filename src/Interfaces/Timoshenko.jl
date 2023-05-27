@@ -12,6 +12,8 @@ struct Intrf_Timoshenko <: inter2D
   Db::Float64
   Dd::Float64
   Dinv::Float64
+  Aa::Float64
+  Ab::Float64
   Ainv::Float64
 end
 function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, Ef::CellField, zf::CellField)
@@ -29,8 +31,8 @@ function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, E
   Dd = Dd_fun(Ef,zf)
   Dinv = 1.0/(Dd*Da-Db^2)
 
-  da(z_val) = sum(∫(    step_field(zf,z_val,Ω)*Ef )*dΓ)
-  db(z_val) = sum(∫( zf*step_field(zf,z_val,Ω)*Ef )*dΓ)
+  da(z_val) = sum(∫(    step_field(zf,z_val,Γ)*Ef )*dΓ)
+  db(z_val) = sum(∫( zf*step_field(zf,z_val,Γ)*Ef )*dΓ)
   Aa = sum( ∫( da∘(zf) )*dΓ )
   Ab = sum( ∫( db∘(zf) )*dΓ )
   Ainv = 1.0/(Ab*Da-Aa*Db)
@@ -40,7 +42,7 @@ function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, E
   
   rot_cf = get_rot_arr(Γ)
 
-  return Intrf_Timoshenko(Γ,Ω,dΓ,rot_cf,Ef,zf,I,L,Da,Db,Dd,Dinv,Ainv)    
+  return Intrf_Timoshenko(Γ,Ω,dΓ,rot_cf,Ef,zf,I,L,Da,Db,Dd,Dinv,Aa,Ab,Ainv)    
 end
 
 function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
@@ -58,11 +60,11 @@ function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
   
-  ##step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
+  #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
   #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω,PhysicalDomain())
   
-  da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf.Ω)*Ef )*intrf.dΓ)
-  db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Ω)*Ef )*intrf.dΓ)
+  da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf.Γ)*Ef )*intrf.dΓ)
+  db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Γ)*Ef )*intrf.dΓ)
   da(z_val) = da_fun(intrf.Ef,intrf.zf,z_val)
   db(z_val) = db_fun(intrf.Ef,intrf.zf,z_val)
   
@@ -91,6 +93,8 @@ function print_info(intrf::Intrf_Timoshenko)
   println(intrf.Dd)
   println(intrf.L )
   println(intrf.I )
+  println(intrf.Aa)
+  println(intrf.Ab)
   println("----------------------------")
 end
 

@@ -88,6 +88,32 @@ intrfB = Intrf_Timoshenko(Γb, Ω, degree, Ef, zf)
 #grid = get_grid(intrfA.Γ)
 # findall( x -> x>maxMin[1,1]-tolerance, arrayCoords[:,1])
 
+tags = ["right", "right_points"]
+labeling = get_face_labeling(model)
+
+labels = Vector{Int32}()
+for tag in tags
+  push!(labels, get_tag_from_name(labeling, tag))
+end
+
+entts = Vector{Int32}()
+for label in labels
+  append!(entts, labeling.tag_to_entities[label])
+end
+
+nodes = findall(x->x in entts, labeling.d_to_dface_to_entity[1])
+
+# de forma alternativa
+
+ske = Skeleton(Γa)
+gri = get_grid(ske)
+nds = gri.parent.node_coordinates
+
+max_y = maximum(lazy_map(x->x[2],nds))
+min_y = minimum(lazy_map(x->x[2],nds))
+
+# Si vui aixo per linies i faces
+
 
 #--------------------------------------------------
 
