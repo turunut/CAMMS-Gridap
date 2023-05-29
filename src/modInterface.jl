@@ -1,7 +1,7 @@
 module modInterface
-  export create_interface, define_corse_fine_Γ, get_line_model
+  export create_interface, define_corse_fine_Γ
   export get_dofs, get_test_trial_spaces, contribute_matrix, contribute_vector, print_info
-  export get_line_model_triangulation, get_line_test_trial_spaces
+  export get_line_model_triangulation, get_line_test_trial_spaces, get_line_distribution
   export Intrf_Timoshenko, Intrf_Kinematic2D
   export Intrf_Reissner,   Intrf_Kinematic3D
 
@@ -11,6 +11,7 @@ module modInterface
   using Gridap.Adaptivity
   using Gridap.CellData
   using Gridap.MultiField
+  using Gridap.FESpaces
   using modSubroutines
   using FillArrays
 
@@ -24,18 +25,7 @@ module modInterface
   include("Interfaces/Kinematic2D.jl")
   include("Interfaces/Kinematic3D.jl")
   include("Interfaces/Timoshenko.jl")
-
-  struct Intrf_Reissner <: inter3D
-    Γ_3D::Triangulation
-    fix_axis::Int64
-    pos_axis::Int64
-    glue::Any
-    c2f_faces::Any
-  end
-  function Intrf_Reissner(Γ_3D::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, fix_axis::Int64, pos_axis::Int64, inv::Bool)
-    glue, c2f_faces = create_interface(Γ_3D, int_coords, fix_axis, pos_axis, inv)
-    return Intrf_Reissner(Γ_3D, fix_axis, pos_axis, glue, c2f_faces)
-  end
+  include("Interfaces/Reissner.jl")
 
   get_dofs(intrf::Intrf_Kinematic2D) = 2
   get_dofs(intrf::Intrf_Kinematic3D) = 3
@@ -49,59 +39,16 @@ module modInterface
     return Vλ, Uλ
   end
 
-  ##function define_corse_fine_triangulation(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64)
-  ##  glue, c2f_faces = create_interface(Γ, int_coords, axis_id, axis_int_coord)
-  ##  cface_model = CartesianDiscreteModel((0,1,0,1),(length(c2f_faces),1))
-  ##  Γc  = Triangulation(cface_model)
-  ##  Γf  = Adaptivity.GluedTriangulation(Γ,Γc,glue)
-  ##  return c2f_faces, cface_model, Γc, Γf
-  ##end
-
-  function get_line_model(intrf::interface)
-    line_model = CartesianDiscreteModel((0,1),(length(intrf.c2f_faces)))
-    Λe = Triangulation(line_model)
-    return line_model, Λe
-  end
+  #function get_line_model(intrf::interface)
+  #  line_model = CartesianDiscreteModel((0,1),(length(intrf.c2f_faces)))
+  #  Λe = Triangulation(line_model)
+  #  return line_model, Λe
+  #end
   
   function get_line_model_triangulation(c2f_faces)
     line_model = CartesianDiscreteModel((0,1),(length(c2f_faces)))
     Λe = Triangulation(line_model)
     return Λe
-  end
-
-  function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis,
-                                                    U_ind::Int64, V_ind::Int64)
-    
-    function step(z::Float64,z_val::Float64)
-      if z <= (z_val)
-        return 1.0
-      else
-        return 0.0
-      end
-    end
-
-    u = U_basis[U_ind]; v = V_basis[U_ind]
-    λ = U_basis[V_ind]; μ = V_basis[V_ind]
-    
-    #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
-    step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω)
-    
-    da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val)*Ef )*intrf.dΓ)
-    db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val)*Ef )*intrf.dΓ)
-    da(z_val) = da_fun(intrf.Ef,intrf.zf,z_val)
-    db(z_val) = db_fun(intrf.Ef,intrf.zf,z_val)
-    
-    function comp_c_arr_cf(cₚ,cₘ,cᵥ)
-        return TensorValue{3,2}(cₚ,cₘ,0.0,0.0,0.0,cᵥ) # [1,1] [2,1] [3,1] [1,2] ...
-    end
-
-    cₚ = (intrf.L/intrf.Da)*intrf.Ef
-    cₘ = (intrf.L/intrf.Dd)*intrf.zf*intrf.Ef
-    cᵥ = (intrf.L/intrf.Dd)*(db∘intrf.zf)
-
-    c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
-
-    return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓ
   end
 
   function create_interface(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64, inv::Bool)
@@ -139,5 +86,30 @@ module modInterface
     glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
     return glue, c2f_faces
   end
+
+ function get_line_distribution(num_divisions::Int64, intrf::inter3D, reffe_line, U_FE, active_DOF)
+  _get_y(x) = VectorValue(x[2])
+  function π_Λe_Γc(f::CellField, Γc::Triangulation)
+      _data = CellData.get_data(f)
+      _cellmap = Fill(Broadcasting(_get_y),length(_data))
+      data = lazy_map(∘,_data,_cellmap)
+      return CellData.similar_cell_field(f,data,Γc,CellData.DomainStyle(f))
+  end
+  
+  domainC = (0, 1); partitionC = (num_divisions)
+  modelC  = CartesianDiscreteModel(domainC, partitionC)
+  ΩC = Triangulation(modelC)
+  VC = FESpace(ΩC,reffe_line,conformity=:H1); UC = TrialFESpace(VC)
+  # Definim la funcio a partir del DOFs
+  xC = zero_free_values(UC); xC[active_DOF] = 1.0
+  uC = FEFunction(UC,xC)
+  # -----------------
+  uC_intrp = Interpolable(uC)
+  
+  ue = interpolate(uC_intrp,U_FE)
+  ue_c = π_Λe_Γc(ue,intrf.Γc)
+
+  return ue_c
+ end
 
 end

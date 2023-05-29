@@ -25,7 +25,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (12,12,4)
+partition = (30,30,10)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -116,7 +116,9 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
 
 #--------------------------------------------------
+  
 
+f = VectorValue(0.0,0.0,0.0)
 
 _get_y(x) = VectorValue(x[2])
 function π_Λe_Γc(f::CellField, Γc::Triangulation)
@@ -126,30 +128,7 @@ function π_Λe_Γc(f::CellField, Γc::Triangulation)
     return CellData.similar_cell_field(f,data,Γc,CellData.DomainStyle(f))
 end
 
-
-f = VectorValue(0.0,0.0,0.0)
-
-
-domainC = (0, 1); partitionC = (3)
-modelC  = CartesianDiscreteModel(domainC, partitionC)
-ΩC = Triangulation(modelC)
-VC = FESpace(ΩC,reffe_e₁,conformity=:H1); UC = TrialFESpace(VC)
-# Definim la funcio a partir del DOFs
-xC = zero_free_values(UC); xC[5] = 1.0
-uC = FEFunction(UC,xC)
-# -----------------
-uC_intrp = Interpolable(uC)
-
-ue₁ = interpolate(uC_intrp,Ue₁)
-ue_c₁ = π_Λe_Γc(ue₁,intrf₁.Γc)
-
-#for i in 0.0:0.025:1.0
-#    println( i, "  ", ue₁( Point(i) ) )
-#end
-#
-#for i in 0.0:0.025:1.0
-#    println( i, "  ", uC( Point(i) ) )
-#end
+ue_c₁ = get_line_distribution(3, intrf₁, reffe_e₁, Ue₁, 6)
 
 xe₂ = zero_free_values(Ue₂); xe₂[13] = 0.0
 ue₂ = FEFunction(Ue₂,xe₂)
@@ -160,8 +139,6 @@ z_coord(x) = x[3]
 z_cf = CellField(z_coord,Ω)
 
 aΩ((u,λ,α),(v,μ,β)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
-
-
 
 aΓ₁((u,λ,α),(v,μ,β)) = contribute_matrix(intrf₁, (u,λ,α), (v,μ,β), 1, 2)
 aΓ₂((u,λ,α),(v,μ,β)) = contribute_matrix(intrf₂, (u,λ,α), (v,μ,β), 1, 3)
