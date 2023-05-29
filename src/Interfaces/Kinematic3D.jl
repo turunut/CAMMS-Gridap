@@ -44,10 +44,10 @@ end
 
 function get_line_test_trial_spaces(intrf::Intrf_Kinematic3D, order)
   dofs = get_dofs(intrf)
-  reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},order)
-  Vλ = FESpace(intrf.Λe,reffe,conformity=:H1)
+  reffeλ = ReferenceFE(lagrangian,VectorValue{dofs,Float64},order)
+  Vλ = FESpace(intrf.Λe,reffeλ,conformity=:H1)
   Uλ = TrialFESpace(Vλ)
-  return Vλ, Uλ
+  return Vλ, Uλ, reffeλ
 end
 
 function contribute_matrix(intrf::Intrf_Kinematic3D, U_basis, V_basis,

@@ -25,7 +25,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (4,4,2)
+partition = (12,12,4)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -99,8 +99,8 @@ V = MultiFieldFESpace([Vu,Vλ₁,Vλ₂])
 U = MultiFieldFESpace([Uu,Uλ₁,Uλ₂])
 
 ## Models linea
-Ve₁, Ue₁ = get_line_test_trial_spaces(intrf₁,order)
-Ve₂, Ue₂ = get_line_test_trial_spaces(intrf₂,order)
+Ve₁, Ue₁, reffe_e₁ = get_line_test_trial_spaces(intrf₁,order)
+Ve₂, Ue₂, reffe_e₂ = get_line_test_trial_spaces(intrf₂,order)
 
 #--------------------------------------------------
 
@@ -129,13 +129,32 @@ end
 
 f = VectorValue(0.0,0.0,0.0)
 
-xe₁ = zero_free_values(Ue₁); xe₁[4] = 1.0
-ue₁ = FEFunction(Ue₁,xe₁)
+
+domainC = (0, 1); partitionC = (3)
+modelC  = CartesianDiscreteModel(domainC, partitionC)
+ΩC = Triangulation(modelC)
+VC = FESpace(ΩC,reffe_e₁,conformity=:H1); UC = TrialFESpace(VC)
+# Definim la funcio a partir del DOFs
+xC = zero_free_values(UC); xC[5] = 1.0
+uC = FEFunction(UC,xC)
+# -----------------
+uC_intrp = Interpolable(uC)
+
+ue₁ = interpolate(uC_intrp,Ue₁)
 ue_c₁ = π_Λe_Γc(ue₁,intrf₁.Γc)
+
+#for i in 0.0:0.025:1.0
+#    println( i, "  ", ue₁( Point(i) ) )
+#end
+#
+#for i in 0.0:0.025:1.0
+#    println( i, "  ", uC( Point(i) ) )
+#end
 
 xe₂ = zero_free_values(Ue₂); xe₂[13] = 0.0
 ue₂ = FEFunction(Ue₂,xe₂)
 ue_c₂ = π_Λe_Γc(ue₂,intrf₂.Γc)
+
 
 z_coord(x) = x[3]
 z_cf = CellField(z_coord,Ω)
