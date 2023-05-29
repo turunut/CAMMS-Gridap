@@ -120,19 +120,12 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
 f = VectorValue(0.0,0.0,0.0)
 
-_get_y(x) = VectorValue(x[2])
-function π_Λe_Γc(f::CellField, Γc::Triangulation)
-    _data = CellData.get_data(f)
-    _cellmap = Fill(Broadcasting(_get_y),length(_data))
-    data = lazy_map(∘,_data,_cellmap)
-    return CellData.similar_cell_field(f,data,Γc,CellData.DomainStyle(f))
-end
-
 ue_c₁ = get_line_distribution(3, intrf₁, reffe_e₁, Ue₁, 6)
+ue_c₂ = get_line_distribution(3, intrf₂, reffe_e₂, Ue₂, 0)
 
-xe₂ = zero_free_values(Ue₂); xe₂[13] = 0.0
-ue₂ = FEFunction(Ue₂,xe₂)
-ue_c₂ = π_Λe_Γc(ue₂,intrf₂.Γc)
+#xe₂ = zero_free_values(Ue₂); xe₂[13] = 0.0
+#ue₂ = FEFunction(Ue₂,xe₂)
+#ue_c₂ = π_Λe_Γc(ue₂,intrf₂.Γc)
 
 
 z_coord(x) = x[3]

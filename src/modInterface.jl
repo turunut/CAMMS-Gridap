@@ -101,7 +101,8 @@ module modInterface
   ΩC = Triangulation(modelC)
   VC = FESpace(ΩC,reffe_line,conformity=:H1); UC = TrialFESpace(VC)
   # Definim la funcio a partir del DOFs
-  xC = zero_free_values(UC); xC[active_DOF] = 1.0
+  xC = zero_free_values(UC);
+  if active_DOF != 0; xC[active_DOF] = 1.0
   uC = FEFunction(UC,xC)
   # -----------------
   uC_intrp = Interpolable(uC)
