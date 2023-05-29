@@ -1,5 +1,8 @@
 using Gridap
 using Gridap.FESpaces
+using Gridap.CellData
+
+using FillArrays
 
 order = 1
 
@@ -34,18 +37,24 @@ UC = TrialFESpace(VC)
 xC = zero_free_values(UC); xC[3] = 1.0
 uC = FEFunction(UC,xC)
 
+uCi = Interpolable(uC)
 
-fC = interpolate_everywhere(uC, FESpace(ΩC,reffe))
-fF = interpolate_everywhere(uC, FESpace(ΩF,reffe))
+uF = interpolate(uCi,UF)
 
 
+#_get_y(x) = VectorValue(x[1])
+#function π_Λe_Γc(f::CellField, Γc::Triangulation)
+#    _data = CellData.get_data(f)
+#    _cellmap = Fill(Broadcasting(_get_y),length(_data))
+#    data = lazy_map(∘,_data,_cellmap)
+#    return CellData.similar_cell_field(f,data,Γc,CellData.DomainStyle(f))
+#end
+
+
+
+xF = zero_free_values(UF)
+uF = π_Λe_Γc(fC,ΩF)
 
 for i in 0:0.02:1
-  println( i, "  ", uC( Point(i) ) )
-end
-
-uF = interpolate(uC, VF)
-
-for i in 0:0.02:1
-  println( i, "  ",uF( Point(i) ) )
+  println( i, "  ", uF( Point(i) ) )
 end
