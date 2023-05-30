@@ -102,14 +102,13 @@ module modInterface
   VC = FESpace(ΩC,reffe_line,conformity=:H1); UC = TrialFESpace(VC)
   # Definim la funcio a partir del DOFs
   xC = zero_free_values(UC);
-  if active_DOF != 0; xC[active_DOF] = 1.0
+  if active_DOF != 0; xC[active_DOF] = 1.0; end
   uC = FEFunction(UC,xC)
   # -----------------
   uC_intrp = Interpolable(uC)
   
   ue = interpolate(uC_intrp,U_FE)
   ue_c = π_Λe_Γc(ue,intrf.Γc)
-
   return ue_c
  end
 
