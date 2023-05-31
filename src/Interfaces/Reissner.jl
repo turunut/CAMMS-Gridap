@@ -1,43 +1,78 @@
 
-struct Intrf_Reissner <: inter3D
-  Γ_3D::Triangulation
+mutable struct Intrf_Reissner <: inter3D
+  Ω::Triangulation
+
+  Γ::Triangulation
+  dΓ::Measure
+
+  Γc::Triangulation
+  dΓc::Measure
+
+  Γf::Triangulation
+  dΓf::Measure
+  
+  Λe::Triangulation
+
+  rot_arr::CellField
+
   fix_axis::Int64
   pos_axis::Int64
   glue::Any
   c2f_faces::Any
+
+  
+  CTf_2D::CellField
+  zf::CellField
+
+  I::Float64
+  L::Float64
+  Da::Float64
+  Db::Float64
+  Dd::Float64
+  Dinv::Float64
+  Aa::Float64
+  Ab::Float64
+  Ainv::Float64
+
+  Intrf_Reissner() = new()
 end
-function Intrf_Reissner(Γ_3D::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, fix_axis::Int64, pos_axis::Int64, inv::Bool)
-  glue, c2f_faces = create_interface(Γ_3D, int_coords, fix_axis, pos_axis, inv)
-  return Intrf_Reissner(Γ_3D, fix_axis, pos_axis, glue, c2f_faces)
+function Intrf_Reissner(Ω, Γ, int_coords::Vector{VectorValue{3, Int64}}, fix_axis::Int64, pos_axis::Int64, degree::Int64, inv::Bool)
+  intrf = Intrf_Reissner()
+
+  intrf.Ω = Ω
+
+  intrf.dΓ = Measure(Γ,degree)
+  intrf.glue, intrf.c2f_faces = create_interface(Γ, int_coords, fix_axis, pos_axis, inv)
+
+  cface_model = CartesianDiscreteModel((0,1,0,1),(length(intrf.c2f_faces),1))
+  intrf.Γc  = Triangulation(cface_model)
+  intrf.Γf  = Adaptivity.GluedTriangulation(Γ,intrf.Γc,intrf.glue)
+  intrf.dΓc = Measure(intrf.Γc,degree)
+  intrf.dΓf = Measure(intrf.Γf,degree)
+
+  intrf.Λe = get_line_model_triangulation(intrf.c2f_faces)
+  intrf.rot_arr = get_rot_arr(Γ)
+  
+  return intrf
 end
 
-function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis, U_ind::Int64, V_ind::Int64)
-  function step(z::Float64,z_val::Float64)
-    if z <= (z_val)
-      return 1.0
-    else
-      return 0.0
-    end
-  end
-  
+function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis, 
+                                                  U_ind::Int64, V_ind::Int64)
+    
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
-  
-  #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
-  step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω)
-  
-  da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val)*Ef )*intrf.dΓ)
-  db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val)*Ef )*intrf.dΓ)
-  da(z_val) = da_fun(intrf.Ef,intrf.zf,z_val)
-  db(z_val) = db_fun(intrf.Ef,intrf.zf,z_val)
+
+  db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Ω)*Ef )*intrf.dΓ)
+  db(z_val) = db_fun(intrf.CTf_2D,intrf.zf,z_val)
   
   function comp_c_arr_cf(cₚ,cₘ,cᵥ)
       return TensorValue{3,2}(cₚ,cₘ,0.0,0.0,0.0,cᵥ) # [1,1] [2,1] [3,1] [1,2] ...
   end
 
-  cₚ = (intrf.L/intrf.Da)*intrf.Ef
-  cₘ = (intrf.L/intrf.Dd)*intrf.zf*intrf.Ef
+  cₚ = (intrf.L/intrf.Da)*intrf.CTf_2D
+  cₘ = (intrf.L/intrf.Dd)*intrf.zf*intrf.CTf_2D
   cᵥ = (intrf.L/intrf.Dd)*(db∘intrf.zf)
+
   c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
-  return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓ
+  return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓf
 end
