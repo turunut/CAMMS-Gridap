@@ -25,7 +25,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (4,4,2)
+partition = (12,12,6)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -74,17 +74,17 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 
 ############################################################################################
 
-axis_id = 2; face_B1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₁  = Intrf_Kinematic3D(Γ₁, int_coords, axis_id, face_B1_pos, degree, true)
+axis_id = 2; face_0_pos = minimum(lazy_map(c->c[axis_id],int_coords))
+intrf₀  = Intrf_Kinematic3D(Γ₀, int_coords, axis_id, face_0_pos, degree, false)
 
-axis_id = 1; face_B2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₂  = Intrf_Kinematic3D(Γ₂, int_coords, axis_id, face_B2_pos, degree, false)
+axis_id = 1; face_1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
+intrf₁  = Intrf_Kinematic3D(Γ₁, int_coords, axis_id, face_1_pos, degree, false)
 
-axis_id = 2; face_B1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₁  = Intrf_Kinematic3D(Γ₁, int_coords, axis_id, face_B1_pos, degree, true)
+axis_id = 2; face_2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
+intrf₂  = Intrf_Kinematic3D(Γ₂, int_coords, axis_id, face_2_pos, degree, true)
 
-axis_id = 1; face_B2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₂  = Intrf_Kinematic3D(Γ₂, int_coords, axis_id, face_B2_pos, degree, false)
+axis_id = 1; face_3_pos = minimum(lazy_map(c->c[axis_id],int_coords))
+intrf₃  = Intrf_Kinematic3D(Γ₃, int_coords, axis_id, face_3_pos, degree, true)
 
 ############################################################################################
 # FESpaces 
@@ -96,15 +96,19 @@ Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
 
 #Vλ_X0, Uλ_X0 = get_test_trial_spaces(intrf_X0, model)
+Vλ₀, Uλ₀ = get_test_trial_spaces(intrf₀)
 Vλ₁, Uλ₁ = get_test_trial_spaces(intrf₁)
 Vλ₂, Uλ₂ = get_test_trial_spaces(intrf₂)
+Vλ₃, Uλ₃ = get_test_trial_spaces(intrf₃)
 
-V = MultiFieldFESpace([Vu,Vλ₁,Vλ₂])
-U = MultiFieldFESpace([Uu,Uλ₁,Uλ₂])
+V = MultiFieldFESpace([Vu,Vλ₀,Vλ₁,Vλ₂,Vλ₃])
+U = MultiFieldFESpace([Uu,Uλ₀,Uλ₁,Uλ₂,Uλ₃])
 
 ## Models linea
+Ve₀, Ue₀, reffe_e₀ = get_line_test_trial_spaces(intrf₀,order)
 Ve₁, Ue₁, reffe_e₁ = get_line_test_trial_spaces(intrf₁,order)
 Ve₂, Ue₂, reffe_e₂ = get_line_test_trial_spaces(intrf₂,order)
+Ve₃, Ue₃, reffe_e₃ = get_line_test_trial_spaces(intrf₃,order)
 
 #--------------------------------------------------
 
@@ -124,8 +128,10 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
 f = VectorValue(0.0,0.0,0.0)
 
-ue_c₁ = get_line_distribution(3, intrf₁, reffe_e₁, Ue₁, 6)
+ue_c₀ = get_line_distribution(3, intrf₀, reffe_e₀, Ue₀, 5)
+ue_c₁ = get_line_distribution(3, intrf₁, reffe_e₁, Ue₁, 0)
 ue_c₂ = get_line_distribution(3, intrf₂, reffe_e₂, Ue₂, 0)
+ue_c₃ = get_line_distribution(3, intrf₃, reffe_e₃, Ue₃, 0)
 
 #xe₂ = zero_free_values(Ue₂); xe₂[13] = 0.0
 #ue₂ = FEFunction(Ue₂,xe₂)
@@ -135,19 +141,29 @@ ue_c₂ = get_line_distribution(3, intrf₂, reffe_e₂, Ue₂, 0)
 z_coord(x) = x[3]
 z_cf = CellField(z_coord,Ω)
 
-aΩ((u,λ,α),(v,μ,β)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+aΩ((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
-aΓ₁((u,λ,α),(v,μ,β)) = contribute_matrix(intrf₁, (u,λ,α), (v,μ,β), 1, 2)
-aΓ₂((u,λ,α),(v,μ,β)) = contribute_matrix(intrf₂, (u,λ,α), (v,μ,β), 1, 3)
+aΓ₀((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₀, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 2)
+aΓ₁((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₁, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 3)
+aΓ₂((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₂, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 4)
+aΓ₃((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₃, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 5)
 
-la₁((v,μ,β)) = contribute_vector(intrf₁, (v,μ,β), 2, ue_c₁)
-la₂((v,μ,β)) = contribute_vector(intrf₂, (v,μ,β), 3, ue_c₂)
+la₀((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₀, (v,μ₀,μ₁,μ₂,μ₃), 2, ue_c₀)
+la₁((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₁, (v,μ₀,μ₁,μ₂,μ₃), 3, ue_c₁)
+la₂((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₂, (v,μ₀,μ₁,μ₂,μ₃), 4, ue_c₂)
+la₃((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₃, (v,μ₀,μ₁,μ₂,μ₃), 5, ue_c₃)
 
-a((u,λ,α),(v,μ,β)) =  aΩ((u,λ,α),(v,μ,β)) + 
-                     aΓ₁((u,λ,α),(v,μ,β)) + 
-                     aΓ₂((u,λ,α),(v,μ,β))
+a((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) =  aΩ((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
+                                     aΓ₀((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
+                                     aΓ₁((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
+                                     aΓ₂((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
+                                     aΓ₃((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃))
 
-l((v,μ,β)) = ∫(v⋅f)*dΩ + la₁((v,μ,β)) + la₂((v,μ,β))
+l((v,μ₀,μ₁,μ₂,μ₃)) = ∫(v⋅f)*dΩ + 
+                     la₀((v,μ₀,μ₁,μ₂,μ₃)) + 
+                     la₁((v,μ₀,μ₁,μ₂,μ₃)) + 
+                     la₂((v,μ₀,μ₁,μ₂,μ₃)) + 
+                     la₃((v,μ₀,μ₁,μ₂,μ₃))
 
 A = assemble_matrix(a,U,V)
 b = assemble_vector(l,V)
