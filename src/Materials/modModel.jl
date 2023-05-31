@@ -35,8 +35,8 @@ module modModel
     z1::Float64
   end
 
-  function computeCT(mod::PlaneStress, ct::CT)
-    CT_2D = modCT.compute2D(ct)
+  function computeCT(mod::PlaneStress, ct::CT, array_form = false)
+    CT_2D = modCT.compute2D(ct, array_form)
 
     return [CT_2D]
   end

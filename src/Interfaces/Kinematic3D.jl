@@ -34,7 +34,7 @@ function Intrf_Kinematic3D(Γ, int_coords::Vector{VectorValue{3, Int64}}, fix_ax
   return Intrf_Kinematic3D(Γ, dΓ, Γc, dΓc, Γf, dΓf, Λe, rot_arr, fix_axis, pos_axis, glue, c2f_faces)
 end
 
-function get_test_trial_spaces(intrf::Intrf_Kinematic3D)
+function get_test_trial_spaces(intrf::inter3D)
   dofs = get_dofs(intrf)
   reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
   Vλ = FESpace(intrf.Γc,reffe,conformity=:L2)
@@ -42,7 +42,7 @@ function get_test_trial_spaces(intrf::Intrf_Kinematic3D)
   return Vλ, Uλ
 end
 
-function get_line_test_trial_spaces(intrf::Intrf_Kinematic3D, order)
+function get_line_test_trial_spaces(intrf::inter3D, order)
   dofs = get_dofs(intrf)
   reffeλ = ReferenceFE(lagrangian,VectorValue{dofs,Float64},order)
   Vλ = FESpace(intrf.Λe,reffeλ,conformity=:H1)

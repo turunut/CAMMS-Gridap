@@ -46,16 +46,8 @@ function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, E
 end
 
 function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
-  U_ind::Int64, V_ind::Int64)
+                                                    U_ind::Int64, V_ind::Int64)
   get_i(i,x) = x[i]
-  
-  #function step(z::Float64,z_val::Float64)
-  #  if z <= (z_val)
-  #    return 1.0
-  #  else
-  #    return 0.0
-  #  end
-  #end
   
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]

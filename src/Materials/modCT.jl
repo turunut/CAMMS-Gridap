@@ -35,7 +35,7 @@ module modCT
     return TensorValue(G)
   end
 
-  function compute2D(ct::CT_Isotrop)
+  function compute2D(ct::CT_Isotrop, array_form::Bool)
     Sarray = zeros((3,3))
     G = ct.E/(2*(1+ct.n))
     Sarray[1,1] =     1/ct.E; Sarray[1,2] = -ct.n/ct.E
@@ -43,8 +43,10 @@ module modCT
     Sarray[3,3] =     1/G
     
     CTarray = inv(Sarray)
-
-    CTtensor = CT_array2tensor_2D(CTarray)
+    
+    if array_form ; CTtensor = CT_array2array_2D(CTarray)
+    else;           CTtensor = CT_array2tensor_2D(CTarray)
+    end
 
     return CTtensor
   end
@@ -124,6 +126,13 @@ module modCT
     tensor = SymFourthOrderTensorValue( (array[1,1], array[1,3], array[1,2],
                                          array[3,1], array[3,3], array[3,2], 
                                          array[2,1], array[2,3], array[2,2],) )
+    return tensor
+  end
+
+  function CT_array2array_2D(array::Array{Float64})
+    tensor = TensorValue{3,3}( array[1,1], array[2,1], array[3,1],
+                               array[1,2], array[2,2], array[3,2], 
+                               array[1,3], array[2,3], array[3,3] )
     return tensor
   end
 
