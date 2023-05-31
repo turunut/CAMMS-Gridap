@@ -24,15 +24,15 @@ mutable struct Intrf_Reissner <: inter3D
   CTf_2D::CellField
   zf::CellField
 
+  l::Float64
   I::Float64
-  L::Float64
+  h::Float64
   Da::Float64
   Db::Float64
   Dd::Float64
-  Dinv::Float64
   Aa::Float64
   Ab::Float64
-  Ainv::Float64
+  invD::Float64
 
   Intrf_Reissner() = new()
 end
@@ -64,15 +64,17 @@ function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis,
 
   db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Ω)*Ef )*intrf.dΓ)
   db(z_val) = db_fun(intrf.CTf_2D,intrf.zf,z_val)
+
+  chos = TensorValue{7,3}(1,0,0, 1,0,0, 0,
+                          0,1,0, 0,1,0, 0,
+                          0,0,0, 0,0,0, 1)
   
-  function comp_c_arr_cf(cₚ,cₘ,cᵥ)
-      return TensorValue{3,2}(cₚ,cₘ,0.0,0.0,0.0,cᵥ) # [1,1] [2,1] [3,1] [1,2] ...
+  function comp_c_arr_cf(c_vec)
+      return TensorValue{7,1}(cₚ,cₘ,0.0,0.0,0.0,cᵥ) # [1,1] [2,1] [3,1] [1,2] ...
   end
 
-  cₚ = (intrf.L/intrf.Da)*intrf.CTf_2D
-  cₘ = (intrf.L/intrf.Dd)*intrf.zf*intrf.CTf_2D
-  cᵥ = (intrf.L/intrf.Dd)*(db∘intrf.zf)
+  c_vec = intrf.l*( intrf.invD ⋅ intrf.CTf_2D )
 
   c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
-  return ∫( (λ⋅(c_arr⋅v)) + (μ⋅(c_arr⋅u)) )*intrf.dΓf
+  return ∫( (λ⋅(c_arr ⋅ (chos⋅v))) + (μ⋅(c_arr ⋅ (chos⋅u))) )*intrf.dΓf
 end

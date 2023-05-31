@@ -31,10 +31,10 @@ model = CartesianDiscreteModel(domain,partition)
 writevtk(model,"models/"*prblName*"/model")
 
 labels = get_face_labeling(model)
-add_tag_from_tags!(labels,"faceY0"  ,[23])
-add_tag_from_tags!(labels,"faceY1"  ,[24])
-add_tag_from_tags!(labels,"faceX0"  ,[25])
-add_tag_from_tags!(labels,"faceX1"  ,[26])
+add_tag_from_tags!(labels,"faceY0",[23])
+add_tag_from_tags!(labels,"faceY1",[24])
+add_tag_from_tags!(labels,"faceX0",[25])
+add_tag_from_tags!(labels,"faceX1",[26])
 
 
 #--------------------------------------------------
@@ -78,6 +78,8 @@ CTs_2D = hcat(ct1_2D)
 
 CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 
+z_coord(x) = x[3]; zf = CellField(z_coord,Ω)
+
 
 #--------------------------------------------------
 
@@ -106,8 +108,38 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 axis_id = 2; face_0_pos = minimum(lazy_map(c->c[axis_id],int_coords))
 intrf₀  = Intrf_Reissner(Ω, Γ₀, int_coords, axis_id, face_0_pos, degree, true)
 intrf₀.CTf_2D = CTf_2D[1]
-z_coord(x) = x[2]; zf = CellField(z_coord,Ω)
 intrf₀.zf = zf
+
+arrayD = zeros(6,6)
+z1=-0.5; z2=0.5
+arrayDa = (1/1)*(z2^1-z1^1) *get_array(ct1_2D[1])
+arrayDb = (1/2)*(z2^2-z1^2) *get_array(ct1_2D[1])
+arrayDd = (1/3)*(z2^3-z1^3) *get_array(ct1_2D[1])
+arrayD[1:3,1:3] = arrayDa
+arrayD[4:6,1:3] = arrayDb; arrayD[1:3,4:6] = arrayDb
+arrayD[4:6,4:6] = arrayDd
+invarD = inv(arrayD)
+tensorD = TensorValue(arrayD)
+invtesD = TensorValue(invarD)
+
+intrf₀.invD = invtesD
+
+
+
+dempty_fun(Ef,zf,z_val) = sum(∫( 1.0 )*intrf₀.dΓf)
+dempty(z_val) = dempty_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
+
+da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf₀.Ω)*Ef )*intrf₀.dΓ)
+da(z_val) = da_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
+
+db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf₀.Ω)*Ef )*intrf₀.dΓ)
+db(z_val) = db_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
+
+
+
+
+
+
 
 axis_id = 1; face_1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf₁  = Intrf_Reissner(Ω, Γ₁, int_coords, axis_id, face_1_pos, degree, false)
