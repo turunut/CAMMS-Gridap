@@ -51,6 +51,7 @@ ct2 = modModel.computeCT(modlType, CT2)
 
 #--------------------------------------------------
 
+
 Ω  = Triangulation(model)
 dΩ = Measure(Ω,degree)
 
@@ -130,9 +131,13 @@ dempty(z_val) = dempty_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
 
 da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf₀.Ω)*Ef )*intrf₀.dΓ)
 da(z_val) = da_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
+da(0.5)/4
+Aa = sum( ∫( da∘(zf) )*intrf₀.dΓ )
 
 db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf₀.Ω)*Ef )*intrf₀.dΓ)
 db(z_val) = db_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
+db(0.5)/4
+Ab = sum( ∫( db∘(zf) )*intrf₀.dΓ )
 
 
 

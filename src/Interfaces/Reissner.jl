@@ -60,40 +60,12 @@ end
 #_reorder2(x::VectorValue) = VectorValue(x[1], 0.0, x[2], x[3])
 function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis, 
                                                   U_ind::Int64, V_ind::Int64)
-    
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
 
   ## reordered
   #uᵣ = _reorder1∘u; vᵣ = _reorder1∘v
   #λᵣ = _reorder2∘λ; μᵣ = _reorder2∘μ
-  #
-  #db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Ω)*Ef )*intrf.dΓ)
-  #db(z_val) = db_fun(intrf.CTf_2D,intrf.zf,z_val)
-  #
-  #function comp_c_arr_cf(α)
-  #  temp = zeros(7,4)
-  #  temp[1:6,1:3] = get_array(α)
-  #  temp[7,4] = 1.0
-  #  return TensorValue{7,4}(cₚ,cₘ,0.0,0.0,0.0,cᵥ)
-  #end
-  #
-  #_tensor(z,t) = TensorValue{6,3}( 1.0, 0.0, 0.0, z, 0.0, 0.0,
-  #                          0.0, 1.0, 0.0, 0.0, z, 0.0,
-  #                          0.0, 0.0, 1.0, 0.0, 0.0, z ) ⋅ t
-  #
-  #IZarr = _tensor∘(intrf.zf,intrf.CTf_2D)
-  #
-  #α = intrf.l*( intrf.invD ⋅ (IZarr ⋅ intrf.CTf_2D) )
-  #
-  #c_arr = comp_c_arr_cf∘(α)
-  #
-  #return ∫( (λᵣ⋅(c_arr ⋅ vᵣ)) + (μᵣ⋅(c_arr ⋅ uᵣ)) )*intrf.dΓf
-
-  #computeWork(v, λ, invD, intrf.CT_2D, intrf.z)
-  #computeWork(u, μ, invD, intrf.CT_2D, intrf.z)
-  #
-  #A = computeWork∘(v, λ, intrf.invD, intrf.CTf_2D, intrf.zf)
 
   invD = CellField(intrf.invD,intrf.Ω)
   T    = _my_tensor∘(intrf.zf, intrf.CTf_2D, invD)
@@ -102,8 +74,6 @@ function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis,
   return ∫(tr_Γf(λ)⋅T⋅v)*intrf.dΓf + 
          ∫(tr_Γf(μ)⋅T⋅u)*intrf.dΓf
 end
-
-
 
 function computeWork(u, λ, invD, CT_2D, z)
   uᵣ =  VectorValue(u[1][1], 0.0, u[2][1], u[3][1])
@@ -121,7 +91,6 @@ function computeWork(u, λ, invD, CT_2D, z)
   return λᵣ⋅(TensorValue{7,4}(A_arr)⋅uᵣ)
 end
 
-
 function _my_tensor(z,CT_2D,invD)
   α_arr = invD ⋅ ( TensorValue{6,3}( 1.0, 0.0, 0.0, z, 0.0, 0.0,
                                      0.0, 1.0, 0.0, 0.0, z, 0.0,
@@ -131,10 +100,3 @@ function _my_tensor(z,CT_2D,invD)
   A_arr[5,3] = 1.0
   return TensorValue{5,3}(A_arr)
 end
-
-function contribute_vector(intrf::Intrf_Reissner, V_basis, V_ind::Int64, f)
-  μ = V_basis[V_ind]
-  tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
-  return ∫( tr_Γf(μ)⋅f )*intrf.dΓf
-end
-

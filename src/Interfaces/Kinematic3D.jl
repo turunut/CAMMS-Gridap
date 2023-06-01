@@ -34,34 +34,12 @@ function Intrf_Kinematic3D(Γ, int_coords::Vector{VectorValue{3, Int64}}, fix_ax
   return Intrf_Kinematic3D(Γ, dΓ, Γc, dΓc, Γf, dΓf, Λe, rot_arr, fix_axis, pos_axis, glue, c2f_faces)
 end
 
-function get_test_trial_spaces(intrf::inter3D)
-  dofs = get_dofs(intrf)
-  reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
-  Vλ = FESpace(intrf.Γc,reffe,conformity=:L2)
-  Uλ = TrialFESpace(Vλ)
-  return Vλ, Uλ
-end
-
-function get_line_test_trial_spaces(intrf::inter3D, order)
-  dofs = get_dofs(intrf)
-  reffeλ = ReferenceFE(lagrangian,VectorValue{dofs,Float64},order)
-  Vλ = FESpace(intrf.Λe,reffeλ,conformity=:H1)
-  Uλ = TrialFESpace(Vλ)
-  return Vλ, Uλ, reffeλ
-end
-
 function contribute_matrix(intrf::Intrf_Kinematic3D, U_basis, V_basis,
                                                      U_ind::Int64, V_ind::Int64)
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
   tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
   return ∫( (tr_Γf(λ)⋅v) + (tr_Γf(μ)⋅u) )*intrf.dΓf
-end
-
-function contribute_vector(intrf::Intrf_Kinematic3D, V_basis, V_ind::Int64, f)
-  μ = V_basis[V_ind]
-  tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
-  return ∫( tr_Γf(μ)⋅f )*intrf.dΓf
 end
 
 function get_rot_arr(Γ::Triangulation{2})
