@@ -25,7 +25,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (4,4,2)
+partition = (12,12,6)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -107,8 +107,7 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 
 axis_id = 2; face_0_pos = minimum(lazy_map(c->c[axis_id],int_coords))
 intrf₀  = Intrf_Reissner(Ω, Γ₀, int_coords, axis_id, face_0_pos, degree, true)
-intrf₀.CTf_2D = CTf_2D[1]
-intrf₀.zf = zf
+intrf₀.CTf_2D = CTf_2D[1]; intrf₀.zf = zf
 
 arrayD = zeros(6,6)
 z1=-0.5; z2=0.5
@@ -137,18 +136,17 @@ db(z_val) = db_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
 
 
 
-
-
-
-
 axis_id = 1; face_1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf₁  = Intrf_Reissner(Ω, Γ₁, int_coords, axis_id, face_1_pos, degree, false)
+intrf₁.CTf_2D = CTf_2D[1]; intrf₁.zf = zf; intrf₁.invD = invtesD
 
 axis_id = 2; face_2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf₂  = Intrf_Reissner(Ω, Γ₂, int_coords, axis_id, face_2_pos, degree, true)
+intrf₂.CTf_2D = CTf_2D[1]; intrf₂.zf = zf; intrf₂.invD = invtesD
 
 axis_id = 1; face_3_pos = minimum(lazy_map(c->c[axis_id],int_coords))
 intrf₃  = Intrf_Reissner(Ω, Γ₃, int_coords, axis_id, face_3_pos, degree, true)
+intrf₃.CTf_2D = CTf_2D[1]; intrf₃.zf = zf; intrf₃.invD = invtesD
 
 ############################################################################################
 # FESpaces 
@@ -180,13 +178,10 @@ Ve₃, Ue₃, reffe_e₃ = get_line_test_trial_spaces(intrf₃,order)
 
 f = VectorValue(0.0,0.0,0.0)
 
-ue_c₀ = get_line_distribution(3, intrf₀, reffe_e₀, Ue₀, 5)
+ue_c₀ = get_line_distribution(3, intrf₀, reffe_e₀, Ue₀, 9)
 ue_c₁ = get_line_distribution(3, intrf₁, reffe_e₁, Ue₁, 0)
 ue_c₂ = get_line_distribution(3, intrf₂, reffe_e₂, Ue₂, 0)
 ue_c₃ = get_line_distribution(3, intrf₃, reffe_e₃, Ue₃, 0)
-
-z_coord(x) = x[3]
-z_cf = CellField(z_coord,Ω)
 
 aΩ((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 
