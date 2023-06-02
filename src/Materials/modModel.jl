@@ -125,7 +125,7 @@ module modModel
 
   function get_CT_CellField(mod::Model, listCTs, tags, Ω::Triangulation)
     cts = CompressedArray(listCTs[1,:], tags)
-    return [CellField(cts,Ω)]
+    return [CellField(cts,Ω,PhysicalDomain())]
   end
 
   function get_CT_CellField(mod::Timoshenko, listCTs, tags, Ω::Triangulation)
