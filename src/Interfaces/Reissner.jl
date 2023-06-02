@@ -33,6 +33,7 @@ mutable struct Intrf_Reissner <: inter3D
   Aa::Float64
   Ab::Float64
   invD::TensorValue{6, 6, Float64, 36}
+  invA::TensorValue{4, 4, Float64, 16}
 
   Intrf_Reissner() = new()
 end
@@ -56,20 +57,43 @@ function Intrf_Reissner(Ω, Γ, int_coords::Vector{VectorValue{3, Int64}}, fix_a
   return intrf
 end
 
-#_reorder1(x::VectorValue) = VectorValue(x[1], 0.0, x[2], x[3])
-#_reorder2(x::VectorValue) = VectorValue(x[1], 0.0, x[2], x[3])
 function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis, 
                                                   U_ind::Int64, V_ind::Int64)
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
 
-  ## reordered
-  #uᵣ = _reorder1∘u; vᵣ = _reorder1∘v
-  #λᵣ = _reorder2∘λ; μᵣ = _reorder2∘μ
+  invD = intrf.invD
+  invA = intrf.invA
 
-  invD = CellField(intrf.invD,intrf.Ω)
-  T    = _my_tensor∘(intrf.zf, intrf.CTf_2D, invD)
   tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
+
+  da_fun(CT,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf.Γf)*CT )*intrf.dΓf)
+  db_fun(CT,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Γf)*CT )*intrf.dΓf)
+  da(z_val) = da_fun(intrf.CTf_2D,intrf.zf,z_val)
+  db(z_val) = db_fun(intrf.CTf_2D,intrf.zf,z_val)
+
+  function _my_tensor(z,CT_2D)
+    da_db_arr = zeros(4,2)
+
+    α_arr = invD ⋅ ( TensorValue{6,3}( 1.0, 0.0, 0.0,   z, 0.0, 0.0,
+                                       0.0, 1.0, 0.0, 0.0,   z, 0.0,
+                                       0.0, 0.0, 1.0, 0.0, 0.0,   z) ⋅ CT_2D )
+    
+    AAA = da(z)
+    BBB = db(z)
+    println(AAA)
+    da_db_arr[1:2,1:2] = get_array( AAA )[1:2,1:2]
+    da_db_arr[3:4,1:2] = get_array( BBB )[1:2,1:2]
+    
+    β_arr = invA ⋅ ( TensorValue{4,2}( da_db_arr ) )
+    
+    A_arr = zeros(5,3)
+    A_arr[1:4,1:2] .= get_array( α_arr )[[1,3,4,6],[1,3]]
+    A_arr[5,3]     = get_array( β_arr )[1,1]
+    return TensorValue{5,3}(A_arr)
+  end
+
+  T = _my_tensor∘(intrf.zf, intrf.CTf_2D)
 
   return ∫(tr_Γf(λ)⋅T⋅v)*intrf.dΓf + 
          ∫(tr_Γf(μ)⋅T⋅u)*intrf.dΓf
@@ -98,5 +122,5 @@ function _my_tensor(z,CT_2D,invD)
   A_arr = zeros(5,3)
   A_arr[1:4,1:2] .= get_array( α_arr )[[1,3,4,6],[1,3]]
   A_arr[5,3] = 1.0
-  return TensorValue{5,3}(A_arr)
+  T = TensorValue{5,3}(A_arr)
 end

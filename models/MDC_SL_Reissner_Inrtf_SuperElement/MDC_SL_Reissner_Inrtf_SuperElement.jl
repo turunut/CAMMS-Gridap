@@ -68,7 +68,9 @@ CTs = hcat(ct1)
 
 CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
+
 #---------------------------
+
 
 modlType_2D = PlaneStress()
 
@@ -80,6 +82,23 @@ CTs_2D = hcat(ct1_2D)
 CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 
 z_coord(x) = x[3]; zf = CellField(z_coord,Ω)
+
+
+
+
+
+
+
+#Lay1 = Timoshenko(1.0, 5.0, -5.0)
+#Lay2 = Timoshenko(1.0, 5.0, -5.0)
+#Lay3 = Timoshenko(1.0, 5.0, -5.0)
+#MT = TimoshenkoLayout([Lay1, Lay2, Lay3], [CT1, CT2, CT1])
+#ct = modModel.computeCT(MT)
+
+
+
+
+
 
 
 #--------------------------------------------------
@@ -122,9 +141,18 @@ invarD = inv(arrayD)
 tensorD = TensorValue(arrayD)
 invtesD = TensorValue(invarD)
 
-intrf₀.invD = invtesD
 
+arrayA = zeros(4,4)
 
+arrayA = [ 52083.33  10416.67 -86805.56 -17361.11 ;
+           10416.67  52083.33 -17361.11 -86805.56 ;
+           10416.67   2083.33      0.0       0.0  ;
+            2083.33  10416.67      0.0       0.0 ]
+
+invarA = transpose( inv(arrayA) )
+invtesA = TensorValue(invarA)
+
+intrf₀.invD = invtesD; intrf₀.invA = invtesA
 
 dempty_fun(Ef,zf,z_val) = sum(∫( 1.0 )*intrf₀.dΓf)
 dempty(z_val) = dempty_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
@@ -143,15 +171,15 @@ Ab = sum( ∫( db∘(zf) )*intrf₀.dΓ )
 
 axis_id = 1; face_1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf₁  = Intrf_Reissner(Ω, Γ₁, int_coords, axis_id, face_1_pos, degree, false)
-intrf₁.CTf_2D = CTf_2D[1]; intrf₁.zf = zf; intrf₁.invD = invtesD
+intrf₁.CTf_2D = CTf_2D[1]; intrf₁.zf = zf; intrf₁.invD = invtesD; intrf₁.invA = invtesA
 
 axis_id = 2; face_2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
 intrf₂  = Intrf_Reissner(Ω, Γ₂, int_coords, axis_id, face_2_pos, degree, true)
-intrf₂.CTf_2D = CTf_2D[1]; intrf₂.zf = zf; intrf₂.invD = invtesD
+intrf₂.CTf_2D = CTf_2D[1]; intrf₂.zf = zf; intrf₂.invD = invtesD; intrf₂.invA = invtesA
 
 axis_id = 1; face_3_pos = minimum(lazy_map(c->c[axis_id],int_coords))
 intrf₃  = Intrf_Reissner(Ω, Γ₃, int_coords, axis_id, face_3_pos, degree, true)
-intrf₃.CTf_2D = CTf_2D[1]; intrf₃.zf = zf; intrf₃.invD = invtesD
+intrf₃.CTf_2D = CTf_2D[1]; intrf₃.zf = zf; intrf₃.invD = invtesD; intrf₃.invA = invtesA
 
 ############################################################################################
 # FESpaces 
@@ -183,7 +211,7 @@ Ve₃, Ue₃, reffe_e₃ = get_line_test_trial_spaces(intrf₃,order)
 
 f = VectorValue(0.0,0.0,0.0)
 
-ue_c₀ = get_line_distribution(3, intrf₀, reffe_e₀, Ue₀, 9)
+ue_c₀ = get_line_distribution(3, intrf₀, reffe_e₀, Ue₀, 10)
 ue_c₁ = get_line_distribution(3, intrf₁, reffe_e₁, Ue₁, 0)
 ue_c₂ = get_line_distribution(3, intrf₂, reffe_e₂, Ue₂, 0)
 ue_c₃ = get_line_distribution(3, intrf₃, reffe_e₃, Ue₃, 0)
