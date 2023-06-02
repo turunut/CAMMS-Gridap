@@ -110,6 +110,45 @@ z_coord(x) = x[3]; zf = CellField(z_coord,Ω)
 Γ₃ = BoundaryTriangulation(model,tags=["tag_25"])
 
 
+
+
+
+
+Ψ = EdgeTriangulation(model,["tag_17"])
+dΨ = Measure(Ψ,degree)
+
+zf_l = CellField(z_coord,Ψ)
+#_proj(glo) = change_domain(glo,Ψ,DomainStyle(glo))
+function f_da(x::VectorValue{3})
+    z_val = x[3]
+    #return sum( ∫( step_field(zf_l,z_val,Ψ)*_proj(CTf_2D[1]) )dΨ )
+    return sum( ∫(    step_field(zf,z_val,Ω)*CTf_2D[1] )dΨ )
+end
+function f_db(x::VectorValue{3})
+    z_val = x[3]
+    #return sum( ∫( zf*step_field(zf_l,z_val,Ψ)*(CTf_2D[1]) )dΨ )
+    return sum( ∫( zf*step_field(zf,z_val,Ψ)*(CTf_2D[1]) )dΨ )
+end
+function f_dd(x::VectorValue{3}); z_val = x[3]; return sum( ∫( zf*zf*step_field(zf,z_val,Ψ)*(CTf_2D[1]) )dΨ ); end
+
+f_da(VectorValue(1.0, 2.0, -0.3))
+f_db(VectorValue(1.0, 2.0, +0.5))
+
+da_field = CellField(f_da,Ψ)
+db_field = CellField(f_db,Ψ)
+dd_field = CellField(f_dd,Ψ)
+
+pts = get_cell_points(Ψ)
+da_field(pts)[6]
+db_field(pts)[6]
+dd_field(pts)[6]
+
+
+
+
+
+
+
 ############################################################################################
 # Coarse model
 
