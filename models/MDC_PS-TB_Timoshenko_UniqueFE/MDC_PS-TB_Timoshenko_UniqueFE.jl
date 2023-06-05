@@ -88,43 +88,51 @@ intrfB = Intrf_Timoshenko(Γb, Ω, degree, Ef, zf)
 #grid = get_grid(intrfA.Γ)
 # findall( x -> x>maxMin[1,1]-tolerance, arrayCoords[:,1])
 
-topo = get_grid_topology(model)
-tags = ["right", "right_points"]
-labeling = get_face_labeling(model)
 
-nodes_mask = get_face_mask(labeling,tags,0)
-nodes = findall(nodes_mask)
-node_coordinates = Geometry.get_node_coordinates(model)
 
-lazy_map(Reindex(coordinates),nodes)
 
-edges = findall(get_face_mask(labeling,tags,1))
-e2n_map = Geometry.get_faces(topo,1,0)  # dimensio de lentitat dentrada i dimensio dels veins
-edge_coords = lazy_map(edge_nodes->node_coordinates[edge_nodes],lazy_map(Reindex(e2n_map),edges))
-map(c->sum(c)/length(c),edge_coords)
 
-labels = Vector{Int32}()
-for tag in tags
-  push!(labels, get_tag_from_name(labeling, tag))
-end
+######topo = get_grid_topology(model)
+######tags = ["right", "right_points"]
+######labeling = get_face_labeling(model)
+######
+######nodes_mask = get_face_mask(labeling,tags,0)
+######nodes = findall(nodes_mask)
+######node_coordinates = Geometry.get_node_coordinates(model)
+######
+######lazy_map(Reindex(coordinates),nodes)
+######
+######edges = findall(get_face_mask(labeling,tags,1))
+######e2n_map = Geometry.get_faces(topo,1,0)  # dimensio de lentitat dentrada i dimensio dels veins
+######edge_coords = lazy_map(edge_nodes->node_coordinates[edge_nodes],lazy_map(Reindex(e2n_map),edges))
+######map(c->sum(c)/length(c),edge_coords)
+######
+######labels = Vector{Int32}()
+######for tag in tags
+######  push!(labels, get_tag_from_name(labeling, tag))
+######end
+######
+######entts = Vector{Int32}()
+######for label in labels
+######  append!(entts, labeling.tag_to_entities[label])
+######end
+######
+######nodes = findall(x->x in entts, labeling.d_to_dface_to_entity[1])
+######
+####### de forma alternativa
+######
+######ske = Skeleton(Γa)
+######gri = get_grid(ske)
+######nds = gri.parent.node_coordinates
+######
+######max_y = maximum(lazy_map(x->x[2],nds))
+######min_y = minimum(lazy_map(x->x[2],nds))
+######
+####### Si vui aixo per linies i faces
 
-entts = Vector{Int32}()
-for label in labels
-  append!(entts, labeling.tag_to_entities[label])
-end
 
-nodes = findall(x->x in entts, labeling.d_to_dface_to_entity[1])
 
-# de forma alternativa
 
-ske = Skeleton(Γa)
-gri = get_grid(ske)
-nds = gri.parent.node_coordinates
-
-max_y = maximum(lazy_map(x->x[2],nds))
-min_y = minimum(lazy_map(x->x[2],nds))
-
-# Si vui aixo per linies i faces
 
 
 #--------------------------------------------------

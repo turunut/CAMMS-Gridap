@@ -8,10 +8,15 @@ struct Intrf_Timoshenko <: inter2D
   zf::CellField
   I::Float64
   L::Float64
+
   Da::Float64
   Db::Float64
   Dd::Float64
   Dinv::Float64
+
+  da_cf::CellField
+  db_cf::CellField
+
   Aa::Float64
   Ab::Float64
   Ainv::Float64
@@ -31,6 +36,19 @@ function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, E
   Dd = Dd_fun(Ef,zf)
   Dinv = 1.0/(Dd*Da-Db^2)
 
+
+
+  function f_da(x); z_val = x[end]; return sum( ∫(    step_field(zf,z_val,Γ)*Ef )dΓ ); end
+  function f_db(x); z_val = x[end]; return sum( ∫( zf*step_field(zf,z_val,Γ)*Ef )dΓ ); end
+
+  da_cf = CellField(f_da,Γ)
+  db_cf = CellField(f_db,Γ)
+  
+  Aa_v2 = sum( ∫( da_cf )*dΓ ); println(Aa_v2)
+  Ab_v2 = sum( ∫( db_cf )*dΓ ); println(Ab_v2)
+
+
+
   da(z_val) = sum(∫(    step_field(zf,z_val,Γ)*Ef )*dΓ)
   db(z_val) = sum(∫( zf*step_field(zf,z_val,Γ)*Ef )*dΓ)
   Aa = sum( ∫( da∘(zf) )*dΓ )
@@ -42,7 +60,7 @@ function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, E
   
   rot_cf = get_rot_arr(Γ)
 
-  return Intrf_Timoshenko(Γ,Ω,dΓ,rot_cf,Ef,zf,I,L,Da,Db,Dd,Dinv,Aa,Ab,Ainv)    
+  return Intrf_Timoshenko(Γ,Ω,dΓ,rot_cf,Ef,zf,I,L,Da,Db,Dd,Dinv, da_cf,db_cf,  Aa,Ab,Ainv)    
 end
 
 function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
@@ -51,9 +69,6 @@ function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
   
   u = U_basis[U_ind]; v = V_basis[U_ind]
   λ = U_basis[V_ind]; μ = V_basis[V_ind]
-  
-  #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Γ)
-  #step_field(zf,z_val) = CellField(step.(zf,z_val),intrf.Ω,PhysicalDomain())
   
   da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf.Γ)*Ef )*intrf.dΓ)
   db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Γ)*Ef )*intrf.dΓ)
@@ -66,7 +81,8 @@ function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,
   
   cₚ = (intrf.L*intrf.Dinv)*(   intrf.Dd*intrf.Ef      - intrf.Db*intrf.zf*intrf.Ef )
   cₘ = (intrf.L*intrf.Dinv)*( - intrf.Db*intrf.Ef      + intrf.Da*intrf.zf*intrf.Ef )
-  cᵥ = (intrf.L*intrf.Ainv)*(   intrf.Db*(da∘intrf.zf) - intrf.Da*(db∘intrf.zf)     )
+  #cᵥ = (intrf.L*intrf.Ainv)*(   intrf.Db*(da∘intrf.zf) - intrf.Da*(db∘intrf.zf)     )
+  cᵥ = (intrf.L*intrf.Ainv)*(   intrf.Db*(intrf.da_cf) - intrf.Da*(intrf.db_cf)     )
   
   c_arr = comp_c_arr_cf∘(cₚ,cₘ,cᵥ)
   

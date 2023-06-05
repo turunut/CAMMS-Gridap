@@ -5,6 +5,7 @@ module modSubroutines
   using Gridap.Arrays
   using Gridap.Fields
   using Gridap.CellData
+  using FillArrays
   using modCT
 
   function get_tags(matFlag, labels, dimens)
@@ -47,7 +48,7 @@ module modSubroutines
   end
 
   function EdgeTriangulation(model::DiscreteModel,tags)
-    D = num_cell_dims(model)
+    D = Geometry.num_cell_dims(model)
     labeling = get_face_labeling(model)
     face_to_mask = get_face_mask(labeling,["tag_17"],D-2)
     face_to_bgface = findall(face_to_mask)
@@ -58,10 +59,10 @@ module modSubroutines
     model::DiscreteModel,
     face_to_bgface::AbstractVector{<:Integer})
 
-    D = num_cell_dims(model)
+    D = Geometry.num_cell_dims(model)
     topo = get_grid_topology(model)
-    bgface_grid = Grid(ReferenceFE{D-2},model)
-    bgface_to_lcell = Fill(1,num_faces(model,D-2))
+    bgface_grid = Grid(Geometry.ReferenceFE{D-2},model)
+    bgface_to_lcell = Fill(1,Geometry.num_faces(model,D-2))
 
     face_grid = view(bgface_grid,face_to_bgface)
     cell_grid = get_grid(model)
