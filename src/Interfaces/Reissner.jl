@@ -24,6 +24,7 @@ mutable struct Intrf_Reissner <: inter3D
   CTf_2D::CellField
   zf::CellField
 
+  ext_TrialFESpace::FESpace
 
   Ψ::Triangulation
   dΨ::Measure

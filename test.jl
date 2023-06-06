@@ -1,8 +1,51 @@
-using Gridap
-using Gridap.FESpaces
-using Gridap.CellData
+#using Gridap
+#using Gridap.FESpaces
+#using Gridap.CellData
+#
+#using FillArrays
 
-using FillArrays
+
+order = 2
+interfaces = [1,1,1,1]
+ext_discrt = [3,3,3,3]
+intrf_map = []
+for (iintrf,intrf) in enumerate(interfaces)
+  if order == 1
+    mapping = 1:ext_discrt[iintrf] + 1
+  elseif order == 2
+    mapping1 = 1:ext_discrt[iintrf] + 1
+    mapping2 = (length(mapping1)+1):(length(mapping1)*2-1)
+    mapping = zeros(Int, length(mapping1) + length(mapping2))
+    mapping[1] = mapping1[1]
+    for i in 1:1:length(mapping2)
+      mapping[ (i)*2 + 0 ] = mapping2[i]
+      mapping[ (i)*2 + 1 ] = mapping1[i]
+    end
+  else
+    println("NOT IMPLEMENTED")
+  end
+  push!(intrf_map, mapping)
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 order = 1
 

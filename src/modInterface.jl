@@ -5,6 +5,9 @@ module modInterface
   export Intrf_Timoshenko, Intrf_Kinematic2D
   export Intrf_Reissner,   Intrf_Kinematic3D
 
+  export defineExternalLine
+  export interpolate_nodal_displ
+
   using Gridap
   using Gridap.Arrays
   using Gridap.TensorValues
