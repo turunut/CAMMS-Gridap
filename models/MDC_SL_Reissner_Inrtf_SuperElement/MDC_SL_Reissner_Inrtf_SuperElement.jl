@@ -360,6 +360,11 @@ uh, λh = xh;
 
 λ₀ = xh.single_fe_functions[2]
 
+
+λ₀_intrp = Interpolable(λ₀)
+corse = interpolate(λ₀_intrp,intrf₀.ext_TrialFESpace)
+
+
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>uh,
                      "ε"=>∂(uh),
