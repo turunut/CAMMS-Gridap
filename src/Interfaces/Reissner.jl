@@ -121,12 +121,8 @@ function contribute_matrix(intrf::Intrf_Reissner, U_basis, V_basis,
   da(z_val) = da_fun(intrf.CTf_2D,intrf.zf,z_val)
   db(z_val) = db_fun(intrf.CTf_2D,intrf.zf,z_val)
 
-
-
   function f_da(x); z_val = x[end]; return sum( ∫(          step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
   function f_db(x); z_val = x[end]; return sum( ∫( intrf.zf*step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
-
-
 
   function _my_tensor(z,CT_2D)
     da_db_arr = zeros(4,2)

@@ -20,8 +20,8 @@ using Gridap.Arrays
 prblName = "Reissner"
 projFldr = pwd()
 
-n = 10
-domain = (0,100,0,100)
+n = 1
+domain = (0,4,0,4)
 partition = (n,n)
 model = CartesianDiscreteModel(domain,partition)
 
@@ -38,7 +38,7 @@ add_tag_from_tags!(labels,"diri_r",[4]) # right edge
 #--------------------------------------------------
 
 
-MT = Reissner(5.0, -5.0)
+MT = Reissner(0.5, -0.5)
 
 CT1 = CT_Isotrop(72000, 0.3)
 ct1 = modModel.computeCT(MT, CT1)

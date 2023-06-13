@@ -76,7 +76,7 @@ module modModel
   end
 
   function computeCT(mod::Reissner, ct::CT)
-    CT_2Dip = modCT.compute2D(ct)
+    CT_2Dip = modCT.compute2D(ct, false)
     CT_2Dop = modCT.compute2DoutPlane(ct)
 
     A = CT_2Dip*(1/1)*(mod.z2^1-mod.z1^1)
