@@ -25,7 +25,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (4,4,1)
+partition = (4,4,2)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -320,8 +320,7 @@ a((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) =  aΩ((u,λ₀,λ₁
 
 A = assemble_matrix(a,U,V)
 
-
-istep = 1
+istep = 7
 ue_c₀ = interpolate_nodal_displ(intrf₀, Ue₀, vectorsB[istep][1])
 ue_c₁ = interpolate_nodal_displ(intrf₁, Ue₁, vectorsB[istep][2])
 ue_c₂ = interpolate_nodal_displ(intrf₂, Ue₂, vectorsB[istep][3])
@@ -341,6 +340,19 @@ l((v,μ₀,μ₁,μ₂,μ₃)) = ∫(v⋅f)*dΩ +
 b = assemble_vector(l,V)
 
 ##--------------------------------------------------
+#Multiplicadors
+coefs((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = aΓ₀((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃))
+
+UU = get_trial_fe_basis(U)
+VV = get_fe_basis(V)
+contrA = coefs(UU,VV)
+elementA = first(contrA.dict).second[1]
+
+
+
+
+
+
 
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
