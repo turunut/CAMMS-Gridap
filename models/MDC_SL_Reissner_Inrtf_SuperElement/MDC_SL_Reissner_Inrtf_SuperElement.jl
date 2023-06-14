@@ -25,7 +25,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (24,24,6)
+partition = (4,4,1)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -238,17 +238,10 @@ f = VectorValue(0.0,0.0,0.0)
 interfaces = [intrf₀, intrf₁, intrf₂, intrf₃]
 ext_discrt = [1,1,1,1]
 
-
-
 defineExternalLine( intrf₀, ext_discrt[1], reffe_e₀ )
 defineExternalLine( intrf₁, ext_discrt[2], reffe_e₁ )
 defineExternalLine( intrf₂, ext_discrt[3], reffe_e₂ )
 defineExternalLine( intrf₃, ext_discrt[4], reffe_e₃ )
-
-
-
-
-
 
 intrf_map = []
 for (iintrf,intrf) in enumerate(interfaces)
@@ -328,11 +321,11 @@ a((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) =  aΩ((u,λ₀,λ₁
 A = assemble_matrix(a,U,V)
 
 
-
-ue_c₀ = interpolate_nodal_displ(intrf₀, Ue₀, vectorsB[1][1])
-ue_c₁ = interpolate_nodal_displ(intrf₁, Ue₁, vectorsB[1][2])
-ue_c₂ = interpolate_nodal_displ(intrf₂, Ue₂, vectorsB[1][3])
-ue_c₃ = interpolate_nodal_displ(intrf₃, Ue₃, vectorsB[1][4])
+istep = 1
+ue_c₀ = interpolate_nodal_displ(intrf₀, Ue₀, vectorsB[istep][1])
+ue_c₁ = interpolate_nodal_displ(intrf₁, Ue₁, vectorsB[istep][2])
+ue_c₂ = interpolate_nodal_displ(intrf₂, Ue₂, vectorsB[istep][3])
+ue_c₃ = interpolate_nodal_displ(intrf₃, Ue₃, vectorsB[istep][4])
 
 la₀((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₀, (v,μ₀,μ₁,μ₂,μ₃), 2, ue_c₀)
 la₁((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₁, (v,μ₀,μ₁,μ₂,μ₃), 3, ue_c₁)
@@ -359,10 +352,9 @@ xh = solve(op);
 uh, λh = xh;
 
 λ₀ = xh.single_fe_functions[2]
-
-
-λ₀_intrp = Interpolable(λ₀)
-corse = interpolate(λ₀_intrp,intrf₀.ext_TrialFESpace)
+λ₁ = xh.single_fe_functions[3]
+λ₂ = xh.single_fe_functions[4]
+λ₃ = xh.single_fe_functions[5]
 
 
 writevtk(Ω,"models/"*prblName*"/"*prblName,
