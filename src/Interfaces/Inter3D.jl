@@ -31,6 +31,10 @@ function defineExternalLine(intrf::inter3D, num_divisions::Int64, reffe_line)
   VC = FESpace(ΩC,reffe_line,conformity=:H1); intrf.ext_TrialFESpace = TrialFESpace(VC)
 end
 
+function defineExternalLine(intrf::inter3D, ΩC)
+  VC = FESpace(ΩC,reffe_line,conformity=:H1); intrf.ext_TrialFESpace = TrialFESpace(VC)
+end
+
 function interpolate_nodal_displ(intrf::inter3D, U_FE, active_DOF)
   _get_y(x) = VectorValue(x[2])
   function π_Λe_Γc(f::CellField, Γc::Triangulation)
@@ -71,3 +75,9 @@ function contribute_vector(intrf::inter3D, V_basis, V_ind::Int64, f)
   tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
   return ∫( tr_Γf(μ)⋅f )*intrf.dΓf
 end
+
+#function contribute_vector(intrf::inter3D, μ, f)
+#  μ = V_basis[V_ind]
+#  tr_Γf(λ) = change_domain(λ,intrf.Γf,DomainStyle(λ))
+#  return ∫( tr_Γf(μ)⋅f )*intrf.dΓf
+#end

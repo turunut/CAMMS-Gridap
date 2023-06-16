@@ -81,15 +81,10 @@ CTs_2D = hcat(ct1_2D)
 
 CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 
-#Lay1 = Timoshenko(1.0, 5.0, -5.0)
-#Lay2 = Timoshenko(1.0, 5.0, -5.0)
-#Lay3 = Timoshenko(1.0, 5.0, -5.0)
-#MT = TimoshenkoLayout([Lay1, Lay2, Lay3], [CT1, CT2, CT1])
-#ct = modModel.computeCT(MT)
-
 
 #--------------------------------------------------
 
+Γ₉  = BoundaryTriangulation(model,tags=["tag_23","tag_26","tag_24","tag_25"])
 
 Γ₀ = BoundaryTriangulation(model,tags=["tag_23"])
 Γ₁ = BoundaryTriangulation(model,tags=["tag_26"])
@@ -97,39 +92,6 @@ CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 Γ₃ = BoundaryTriangulation(model,tags=["tag_25"])
 
 Ψ = EdgeTriangulation(model,["tag_17"])
-
-
-##dΨ = Measure(Ψ,degree)
-##
-##zf_l = CellField(z_coord,Ψ)
-###_proj(glo) = change_domain(glo,Ψ,DomainStyle(glo))
-##function f_da(x); z_val = x[end]
-##    #return sum( ∫( step_field(zf_l,z_val,Ψ)*_proj(CTf_2D[1]) )dΨ )
-##    return sum( ∫(       step_field(zf,z_val,Ψ)*CTf_2D[1] )dΨ ); end
-##function f_db(x); z_val = x[end]
-##    #return sum( ∫( zf*step_field(zf_l,z_val,Ψ)*(CTf_2D[1]) )dΨ )
-##    return sum( ∫(    zf*step_field(zf,z_val,Ψ)*CTf_2D[1] )dΨ ); end
-##function f_dd(x); z_val = x[end];
-##    return sum( ∫( zf*zf*step_field(zf,z_val,Ψ)*CTf_2D[1] )dΨ ); end
-##
-###function f_da_2(z_val)
-###    return sum( ∫(    step_field(zf,z_val,Ω)*CTf_2D[1] )dΨ ); end
-###Aa = sum( ∫( f_da_2∘(zf) )*dΨ )
-##
-##f_da(VectorValue(1.0, 2.0, -0.3))
-##f_db(VectorValue(1.0, 2.0, +0.5))
-##
-##da_field = CellField(f_da,Ψ)
-##db_field = CellField(f_db,Ψ)
-##dd_field = CellField(f_dd,Ψ)
-##
-##Aa = sum( ∫( da_field )*dΨ )
-##Ab = sum( ∫( db_field )*dΨ )
-##
-##pts = get_cell_points(Ψ)
-##da_field(pts)[6]
-##db_field(pts)[6]
-##dd_field(pts)[6]
 
 
 ############################################################################################
@@ -153,206 +115,217 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 
 z_coord(x) = x[end]; zf = CellField(z_coord,Ω)
 
-axis_id = 2; face_0_pos = minimum(lazy_map(c->c[axis_id],int_coords))
-intrf₀  = Intrf_Reissner(Ω, Γ₀, Ψ, CTf_2D[1], int_coords, axis_id, face_0_pos, degree, false)
+axis_id₀ = 2; face_pos₀ = minimum(lazy_map(c->c[axis_id₀],int_coords))
 
-###arrayD = zeros(6,6)
-###z1=-0.5; z2=0.5
-###arrayDa = (1/1)*(z2^1-z1^1) *get_array(ct1_2D[1])
-###arrayDb = (1/2)*(z2^2-z1^2) *get_array(ct1_2D[1])
-###arrayDd = (1/3)*(z2^3-z1^3) *get_array(ct1_2D[1])
-###arrayD[1:3,1:3] = arrayDa
-###arrayD[4:6,1:3] = arrayDb; arrayD[1:3,4:6] = arrayDb
-###arrayD[4:6,4:6] = arrayDd
-###invarD = inv(arrayD)
-###tensorD = TensorValue(arrayD)
-###invtesD = TensorValue(invarD)
-###
-###
-###arrayA = zeros(4,4)
-###
-###arrayA = [ 52083.33  10416.67 -86805.56 -17361.11 ;
-###           10416.67  52083.33 -17361.11 -86805.56 ;
-###           10416.67   2083.33      0.0       0.0  ;
-###            2083.33  10416.67      0.0       0.0 ]
-###
-###invarA = transpose( inv(arrayA) )
-###invtesA = TensorValue(invarA)
-###
-###intrf₀.invD = invtesD; intrf₀.invA = invtesA
-###
-###dempty_fun(Ef,zf,z_val) = sum(∫( 1.0 )*intrf₀.dΓf)
-###dempty(z_val) = dempty_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
-###
-###da_fun(Ef,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf₀.Ω)*Ef )*intrf₀.dΓ)
-###da(z_val) = da_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
-###da(0.5)/4
-###Aa = sum( ∫( da∘(zf) )*intrf₀.dΓ )
-###
-###db_fun(Ef,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf₀.Ω)*Ef )*intrf₀.dΓ)
-###db(z_val) = db_fun(intrf₀.CTf_2D,intrf₀.zf,z_val)
-###db(0.5)/4
-###Ab = sum( ∫( db∘(zf) )*intrf₀.dΓ )
+axis_id₁ = 1; face_pos₁ = maximum(lazy_map(c->c[axis_id₁],int_coords))
+
+axis_id₂ = 2; face_pos₂ = maximum(lazy_map(c->c[axis_id₂],int_coords))
+
+axis_id₃ = 1; face_pos₃ = minimum(lazy_map(c->c[axis_id₃],int_coords))
+
+#glue₉ = create_interface_global([Γ₀,Γ₁,Γ₂,Γ₃],
+#                                int_coords, 
+#                                [axis_id₀, axis_id₁, axis_id₂,axis_id₃],
+#                                [face_pos₀,face_pos₁,face_pos₂,face_pos₃],
+#                                [false,false,true,true])
+
+Γ = [Γ₀,Γ₁,Γ₂,Γ₃]
+axis_id = [axis_id₀, axis_id₁, axis_id₂,axis_id₃]
+axis_int_coord = [face_pos₀,face_pos₁,face_pos₂,face_pos₃]
+inv_list = [false,false,true,true]
 
 
+c2f_faces_list = []
+n2o_faces_g = Vector{Vector{Int}}(undef, 0)
+child_ids_g = Vector{Int}(undef, 0)
 
-axis_id = 1; face_1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₁  = Intrf_Reissner(Ω, Γ₁, Ψ, CTf_2D[1], int_coords, axis_id, face_1_pos, degree, false)
+append!(n2o_faces_g, [[],[],[]])
 
-axis_id = 2; face_2_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf₂  = Intrf_Reissner(Ω, Γ₂, Ψ, CTf_2D[1], int_coords, axis_id, face_2_pos, degree, true)
+global totalColumns = 0
+global coun_max_n2o = 0
+for iintrf in eachindex(Γ)
+  n2o_faces, child_ids, c2f_faces = get_comp_glue(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf]) 
+  n2o_faces[3] .+= coun_max_n2o
+  append!(n2o_faces_g[3], n2o_faces[3])
+  append!(child_ids_g, child_ids)
+  global totalColumns += length(c2f_faces)
+  push!(c2f_faces_list, c2f_faces)
+  global coun_max_n2o = maximum(n2o_faces[3])
+end
 
-axis_id = 1; face_3_pos = minimum(lazy_map(c->c[axis_id],int_coords))
-intrf₃  = Intrf_Reissner(Ω, Γ₃, Ψ, CTf_2D[1], int_coords, axis_id, face_3_pos, degree, true)
+c2f_faces_glo = append_tables_globally(c2f_faces_list[1], c2f_faces_list[2], c2f_faces_list[3], c2f_faces_list[4])
+
+rrules_g = Fill(RefinementRule(QUAD,(1,length(c2f_faces_glo[1]))),length(c2f_faces_glo))
+glue = AdaptivityGlue(n2o_faces_g,child_ids_g,rrules_g) # From coarse to fine
+
+cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true,false))
+Γc  = Triangulation(cface_model)
+Γf  = Gridap.Adaptivity.GluedTriangulation(Γ₉,Γc,glue)
+
+
+intrf₀  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₀, CTf_2D[1], degree)
+
+intrf₁  = Intrf_ReissnerV2(Ω, Γ₁, Ψ, Γ₁, CTf_2D[1], degree)
+
+intrf₂  = Intrf_ReissnerV2(Ω, Γ₂, Ψ, Γ₂, CTf_2D[1], degree)
+
+intrf₃  = Intrf_ReissnerV2(Ω, Γ₃, Ψ, Γ₃, CTf_2D[1], degree)
+
 
 ############################################################################################
 # FESpaces 
 # Model 3D
 reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 
-
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
 
-#Vλ_X0, Uλ_X0 = get_test_trial_spaces(intrf_X0, model)
-Vλ₀, Uλ₀ = get_test_trial_spaces(intrf₀)
-Vλ₁, Uλ₁ = get_test_trial_spaces(intrf₁)
-Vλ₂, Uλ₂ = get_test_trial_spaces(intrf₂)
-Vλ₃, Uλ₃ = get_test_trial_spaces(intrf₃)
+dofs  = 5
+reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
+Vλ = FESpace(Γc,reffe,conformity=:L2)
+Uλ = TrialFESpace(Vλ)
 
-V = MultiFieldFESpace([Vu,Vλ₀,Vλ₁,Vλ₂,Vλ₃])
-U = MultiFieldFESpace([Uu,Uλ₀,Uλ₁,Uλ₂,Uλ₃])
+V = MultiFieldFESpace([Vu,Vλ])
+U = MultiFieldFESpace([Uu,Uλ])
 
-## Models linea
-Ve₀, Ue₀, reffe_e₀ = get_line_test_trial_spaces(intrf₀,order)
-Ve₁, Ue₁, reffe_e₁ = get_line_test_trial_spaces(intrf₁,order)
-Ve₂, Ue₂, reffe_e₂ = get_line_test_trial_spaces(intrf₂,order)
-Ve₃, Ue₃, reffe_e₃ = get_line_test_trial_spaces(intrf₃,order)
+## Model linea
+modelΛf = CartesianDiscreteModel((0,1),totalColumns;isperiodic=Tuple(true))
+Λf = Triangulation(modelΛf)
+
+dofs = 5
+reffeΛ = ReferenceFE(lagrangian,VectorValue{dofs,Float64},order)
+VΛf = FESpace(Λf,reffeΛ,conformity=:H1)
+UΛf = TrialFESpace(VΛf)
 
 
 #--------------------------------------------------
-  
+
 
 f = VectorValue(0.0,0.0,0.0)
 
 interfaces = [intrf₀, intrf₁, intrf₂, intrf₃]
-ext_discrt = [1,1,1,1]
+crs_dsc = [1,1,1,1]
 
-defineExternalLine( intrf₀, ext_discrt[1], reffe_e₀ )
-defineExternalLine( intrf₁, ext_discrt[2], reffe_e₁ )
-defineExternalLine( intrf₂, ext_discrt[3], reffe_e₂ )
-defineExternalLine( intrf₃, ext_discrt[4], reffe_e₃ )
+domainΛc = (0, 1); partitionΛc = (totalColumns)
+modelΛc  = CartesianDiscreteModel(domainΛc, partitionΛc)
+Λc  = Triangulation(modelΛc)
+VΛc = FESpace(Λc,reffeΛ,conformity=:H1); UΛc = TrialFESpace(VΛc)
 
-intrf_map = []
-for (iintrf,intrf) in enumerate(interfaces)
-  if order == 1
-    mapping = 1:ext_discrt[iintrf] + 1
-  elseif order == 2
-    mapping1 = 1:ext_discrt[iintrf] + 1
-    mapping2 = (length(mapping1)+1):(length(mapping1)*2-1)
-    mapping = zeros(Int, length(mapping1) + length(mapping2))
-    mapping[1] = mapping1[1]
-    for i in 1:1:length(mapping2)
-      mapping[ (i)*2 + 0 ] = mapping2[i]
-      mapping[ (i)*2 + 1 ] = mapping1[i+1]
-    end
-  else
-    println("NOT IMPLEMENTED")
-  end
-  push!(intrf_map, mapping)
-end
-println(intrf_map)
+active_DOF = 1
 
-iext_intrf = Vector{Vector{Int}}()
-iext_dofs  = Vector{Int}()
-for (iintrf, intrf) in enumerate(interfaces)
-  num_ext_dictr = length(intrf_map[iintrf])
-  for inode in 1:num_ext_dictr
-    intrf_temp = zeros(Int, length(interfaces))
-    
-    intrf_temp[iintrf] = intrf_map[iintrf][inode] #inode
-
-    iback = (iintrf+6) % length(interfaces) + 1
-    if (inode == 1)                  && (typeof(interfaces[iintrf]) == typeof(interfaces[iback]))
-      intrf_temp[iback] = intrf_map[iback][length(intrf_map[iback])] #length(intrf_map[iback])
-    end
-
-    inext = (iintrf) % length(interfaces) + 1
-    println(inext)
-    if (inode == num_ext_dictr) && (typeof(interfaces[iintrf]) == typeof(interfaces[inext]))
-      intrf_temp[inext] = 1
-    end
-    
-    push!(iext_intrf, intrf_temp)
-    push!(iext_dofs, get_dofs(intrf))
-
-  end
+_get_y(x) = VectorValue(x[2])
+function π_Λe_Γc(f::CellField, Γc::Triangulation)
+  _data = CellData.get_data(f)
+  _cellmap = Fill(Broadcasting(_get_y),length(_data))
+  data = lazy_map(∘,_data,_cellmap)
+  return CellData.similar_cell_field(f,data,Γc,CellData.DomainStyle(f))
 end
 
-vectorsB = []
-for (iext_node, ext_node) in enumerate(iext_intrf)
-  for idof in 1:iext_dofs[iext_node]
-    temp = (ext_node.-1)*iext_dofs[iext_node] .+ idof
-    for (inum,num) in enumerate(temp);
-      if num <= 0; temp[inum] = 0; end
-    end
-    push!(vectorsB, temp)
-  end
+xC = zero_free_values(UΛc);
+if active_DOF != 0; xC[active_DOF] = 1.0; end
+fun_uC = FEFunction(UΛc,xC)
+# -----------------
+uC_intrp = Interpolable(fun_uC)
+
+fun_ue = interpolate(uC_intrp,UΛf)
+ue_c = π_Λe_Γc(fun_ue,Γc)
+
+
+
+
+
+struct InterfaceProblem
+  Ω::Triangulation
+  Γf::Triangulation
+  Γc::Triangulation
+  Λ::Triangulation
+  intrf :: Vector{Intrf_ReissnerV2}
 end
 
-#ue_c₀ = get_line_distribution(ext_discrt[1], intrf₀, reffe_e₀, Ue₀, 12)
-#ue_c₁ = get_line_distribution(ext_discrt[2], intrf₁, reffe_e₁, Ue₁, 0)
-#ue_c₂ = get_line_distribution(ext_discrt[3], intrf₂, reffe_e₂, Ue₂, 0)
-#ue_c₃ = get_line_distribution(ext_discrt[4], intrf₃, reffe_e₃, Ue₃, 0)
+prob = InterfaceProblem(Ω, Γf, Γc, Λf, [intrf₀, intrf₁, intrf₂, intrf₃])
 
-aΩ((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+function func(problem::InterfaceProblem,u,v,λ,μ)
 
-aΓ₀((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₀, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 2)
-aΓ₁((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₁, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 3)
-aΓ₂((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₂, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 4)
-aΓ₃((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = contribute_matrix(intrf₃, (u,λ₀,λ₁,λ₂,λ₃), (v,μ₀,μ₁,μ₂,μ₃), 1, 5)
+  λ_f = change_domain(λ,problem.Γf,ReferenceDomain())
+  μ_f = change_domain(μ,problem.Γf,ReferenceDomain())
 
-a((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) =  aΩ((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
-                                     aΓ₀((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
-                                     aΓ₁((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
-                                     aΓ₂((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) + 
-                                     aΓ₃((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃))
+  contr = DomainContribution()
+  for intrf in problem.intrf
+    Γfi  = intrf.Γi
+    dΓfi = intrf.dΓi
+
+    invD = intrf.invD
+    invA = intrf.invA
+  
+    da_fun(CT,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf.Γf)*CT )*intrf.dΓf)
+    db_fun(CT,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Γf)*CT )*intrf.dΓf)
+    da(z_val) = da_fun(intrf.CTf_2D,intrf.zf,z_val)
+    db(z_val) = db_fun(intrf.CTf_2D,intrf.zf,z_val)
+  
+    function f_da(x); z_val = x[end]; return sum( ∫(          step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
+    function f_db(x); z_val = x[end]; return sum( ∫( intrf.zf*step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
+  
+    function _my_tensor(z,CT_2D)
+      da_db_arr = zeros(4,2)
+  
+      α_arr = invD ⋅ ( TensorValue{6,3}( 1.0, 0.0, 0.0,   z, 0.0, 0.0,
+                                         0.0, 1.0, 0.0, 0.0,   z, 0.0,
+                                         0.0, 0.0, 1.0, 0.0, 0.0,   z) ⋅ CT_2D )
+  
+      AAA = f_da(z)
+      BBB = f_db(z)
+      
+      da_db_arr[1:2,1:2] = get_array( AAA )[1:2,1:2]
+      da_db_arr[3:4,1:2] = get_array( BBB )[1:2,1:2]
+      
+      β_arr = invA ⋅ ( TensorValue{4,2}( da_db_arr ) )
+      
+      A_arr = zeros(5,3)
+      A_arr[1:4,1:2] .= get_array( α_arr )[[1,3,4,6],[1,3]]
+      A_arr[5,3]      = get_array( β_arr )[1,1]
+      return TensorValue{5,3}(A_arr)
+    end
+  
+    T = _my_tensor∘(intrf.zf, intrf.CTf_2D)
+
+    pts = get_cell_points(dΓfi)
+    T(pts)
+
+    contr += ∫(λ_f⋅T⋅v + μ_f⋅T⋅u)*dΓfi
+  end
+  return contr
+end
+
+aΓ((u,λ),(v,μ)) = func(prob,u,v,λ,μ)
+aΩ((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+
+a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
+
+u,λ = get_trial_fe_basis(U)
+v,μ = get_fe_basis(U)
+
+
+#Γi = BoundaryTriangulation(Γf,tags=["tag_23"])
+
+Γi = view(Γf,[1,2,3,4,5,6,7,8])
+
+pts = get_cell_points(Γi)
+λf = change_domain(λ,Γf,ReferenceDomain())
+λfi = change_domain(λf,Γi,ReferenceDomain())
+
+
+ui = change_domain(u,prob.intrf[1].Γi,ReferenceDomain())
 
 A = assemble_matrix(a,U,V)
 
-istep = 7
-ue_c₀ = interpolate_nodal_displ(intrf₀, Ue₀, vectorsB[istep][1])
-ue_c₁ = interpolate_nodal_displ(intrf₁, Ue₁, vectorsB[istep][2])
-ue_c₂ = interpolate_nodal_displ(intrf₂, Ue₂, vectorsB[istep][3])
-ue_c₃ = interpolate_nodal_displ(intrf₃, Ue₃, vectorsB[istep][4])
 
-la₀((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₀, (v,μ₀,μ₁,μ₂,μ₃), 2, ue_c₀)
-la₁((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₁, (v,μ₀,μ₁,μ₂,μ₃), 3, ue_c₁)
-la₂((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₂, (v,μ₀,μ₁,μ₂,μ₃), 4, ue_c₂)
-la₃((v,μ₀,μ₁,μ₂,μ₃)) = contribute_vector(intrf₃, (v,μ₀,μ₁,μ₂,μ₃), 5, ue_c₃)
 
-l((v,μ₀,μ₁,μ₂,μ₃)) = ∫(v⋅f)*dΩ + 
-                     la₀((v,μ₀,μ₁,μ₂,μ₃)) + 
-                     la₁((v,μ₀,μ₁,μ₂,μ₃)) + 
-                     la₂((v,μ₀,μ₁,μ₂,μ₃)) + 
-                     la₃((v,μ₀,μ₁,μ₂,μ₃))
+l((v,μ₀,μ₁,μ₂,μ₃)) = ∫(v⋅f)*dΩ + ∫( μ_glo⋅ue_c )*dΓf
 
 b = assemble_vector(l,V)
 
 ##--------------------------------------------------
 #Multiplicadors
-coefs((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃)) = aΓ₀((u,λ₀,λ₁,λ₂,λ₃),(v,μ₀,μ₁,μ₂,μ₃))
-
-UU = get_trial_fe_basis(U)
-VV = get_fe_basis(V)
-contrA = coefs(UU,VV)
-elementA = first(contrA.dict).second[1]
-
-
-
-
-
-
 
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
