@@ -19,7 +19,7 @@ using FillArrays
 prblName = "MDC_SL_Reissner_Inrtf_SuperElement"
 projFldr = pwd()
 
-order = 2
+order  = 2
 degree = 2*order
 
 ############################################################################################
@@ -45,7 +45,7 @@ modlType = Solid()
 CT1 = CT_Isotrop(72000, 0.3)
 ct1 = modModel.computeCT(modlType, CT1)
 
-CT2 = CT_Isotrop(7240, 0.3)
+CT2 = CT_Isotrop(7240,  0.3)
 ct2 = modModel.computeCT(modlType, CT2)
 
 
@@ -84,7 +84,7 @@ CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 
 #--------------------------------------------------
 
-Γ₉  = BoundaryTriangulation(model,tags=["tag_23","tag_26","tag_24","tag_25"])
+Γ₉ = BoundaryTriangulation(model,tags=["tag_23","tag_26","tag_24","tag_25"])
 
 Γ₀ = BoundaryTriangulation(model,tags=["tag_23"])
 Γ₁ = BoundaryTriangulation(model,tags=["tag_26"])
@@ -135,60 +135,97 @@ axis_int_coord = [face_pos₀,face_pos₁,face_pos₂,face_pos₃]
 inv_list = [false,false,true,true]
 
 
-c2f_faces_list = []
-n2o_faces_g = Vector{Vector{Int}}(undef, 0)
-child_ids_g = Vector{Int}(undef, 0)
+global_n2o_faces = Vector{Int}(undef, 0)
+global_child_ids = Vector{Int}(undef, 0)
+partial_glues = AdaptivityGlue[]
 
-append!(n2o_faces_g, [[],[],[]])
-
-global totalColumns = 0
-global coun_max_n2o = 0
+totalColumns = 0
+n_refs = 0
 for iintrf in eachindex(Γ)
-  n2o_faces, child_ids, c2f_faces = get_comp_glue(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf]) 
-  n2o_faces[3] .+= coun_max_n2o
-  append!(n2o_faces_g[3], n2o_faces[3])
-  append!(child_ids_g, child_ids)
-  global totalColumns += length(c2f_faces)
-  push!(c2f_faces_list, c2f_faces)
-  global coun_max_n2o = maximum(n2o_faces[3])
+  n2o_faces, child_ids, o2n_faces = get_comp_glue(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
+  n_coarse = length(o2n_faces)
+  n_refs = length(o2n_faces[1])
+
+  n2o_faces[3] .+= totalColumns
+  rrules = Fill(RefinementRule(QUAD,(1,n_refs)),n_coarse)
+  glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
+  push!(partial_glues, glue)
+
+  global_n2o_faces = vcat(global_n2o_faces, n2o_faces[3])
+  global_child_ids = vcat(global_child_ids, child_ids)
+  totalColumns += n_coarse
 end
 
-c2f_faces_glo = append_tables_globally(c2f_faces_list[1], c2f_faces_list[2], c2f_faces_list[3], c2f_faces_list[4])
-
-rrules_g = Fill(RefinementRule(QUAD,(1,length(c2f_faces_glo[1]))),length(c2f_faces_glo))
-glue = AdaptivityGlue(n2o_faces_g,child_ids_g,rrules_g) # From coarse to fine
+global_rrules = Fill(RefinementRule(QUAD,(1,n_refs)),totalColumns)
+glue = AdaptivityGlue([Int[],Int[],global_n2o_faces],global_child_ids,global_rrules) # From coarse to fine
 
 cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true,false))
 Γc  = Triangulation(cface_model)
 Γf  = Gridap.Adaptivity.GluedTriangulation(Γ₉,Γc,glue)
 
 
-intrf₀  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₀, CTf_2D[1], degree)
 
-intrf₁  = Intrf_ReissnerV2(Ω, Γ₁, Ψ, Γ₁, CTf_2D[1], degree)
 
-intrf₂  = Intrf_ReissnerV2(Ω, Γ₂, Ψ, Γ₂, CTf_2D[1], degree)
 
-intrf₃  = Intrf_ReissnerV2(Ω, Γ₃, Ψ, Γ₃, CTf_2D[1], degree)
+#iintrf = 1
+#face_glue, face_c2f_faces = create_interface(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
+#face_glue.n2o_faces_map[3] .+= iintrf-1
+#Γ₀_glue = Gridap.Adaptivity.GluedTriangulation(Γ₀,Γc,face_glue)
+#
+#iintrf = 2
+#face_glue, face_c2f_faces = create_interface(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
+#face_glue.n2o_faces_map[3] .+= iintrf-1
+#Γ₁_glue = Gridap.Adaptivity.GluedTriangulation(Γ₁,Γc,face_glue)
+#
+#iintrf = 3
+#face_glue, face_c2f_faces = create_interface(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
+#face_glue.n2o_faces_map[3] .+= iintrf-1
+#Γ₂_glue = Gridap.Adaptivity.GluedTriangulation(Γ₂,Γc,face_glue)
+#
+#iintrf = 4
+#face_glue, face_c2f_faces = create_interface(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
+#face_glue.n2o_faces_map[3] .+= iintrf-1
+#Γ₃_glue = Gridap.Adaptivity.GluedTriangulation(Γ₃,Γc,face_glue)
+
+
+Γ₀_glue = Gridap.Adaptivity.GluedTriangulation(Γ₀,Γc,partial_glues[1])
+Γ₁_glue = Gridap.Adaptivity.GluedTriangulation(Γ₁,Γc,partial_glues[2])
+Γ₂_glue = Gridap.Adaptivity.GluedTriangulation(Γ₂,Γc,partial_glues[3])
+Γ₃_glue = Gridap.Adaptivity.GluedTriangulation(Γ₃,Γc,partial_glues[4])
+
+
+intrf₀  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₀_glue, CTf_2D[1], degree)
+
+intrf₁  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₁_glue, CTf_2D[1], degree)
+
+intrf₂  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₂_glue, CTf_2D[1], degree)
+
+intrf₃  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₃_glue, CTf_2D[1], degree)
 
 
 ############################################################################################
 # FESpaces 
-# Model 3D
+# Definim el model 3D
 reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
 
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
 
+# Definim l'espai de l'acoplament
 dofs  = 5
 reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
 Vλ = FESpace(Γc,reffe,conformity=:L2)
 Uλ = TrialFESpace(Vλ)
 
+# Ajuntem els dos espais anteriors
 V = MultiFieldFESpace([Vu,Vλ])
 U = MultiFieldFESpace([Uu,Uλ])
 
-## Model linea
+
+############################################################################################
+
+
+## Model linea fine amb periodicitat als seus extrems
 modelΛf = CartesianDiscreteModel((0,1),totalColumns;isperiodic=Tuple(true))
 Λf = Triangulation(modelΛf)
 
@@ -201,16 +238,19 @@ UΛf = TrialFESpace(VΛf)
 #--------------------------------------------------
 
 
-f = VectorValue(0.0,0.0,0.0)
-
 interfaces = [intrf₀, intrf₁, intrf₂, intrf₃]
 crs_dsc = [1,1,1,1]
 
-domainΛc = (0, 1); partitionΛc = (totalColumns)
-modelΛc  = CartesianDiscreteModel(domainΛc, partitionΛc)
+# Defineixo el model lineal coarse
+domainΛc = (0, 1); partitionΛc = (sum(crs_dsc))
+modelΛc  = CartesianDiscreteModel(domainΛc, partitionΛc; isperiodic=Tuple(true))
 Λc  = Triangulation(modelΛc)
-VΛc = FESpace(Λc,reffeΛ,conformity=:H1); UΛc = TrialFESpace(VΛc)
 
+VΛc = FESpace(modelΛc,reffeΛ,conformity=:H1); UΛc = TrialFESpace(VΛc)
+
+
+
+# Dic quin DOF vui activar
 active_DOF = 1
 
 _get_y(x) = VectorValue(x[2])
@@ -221,16 +261,15 @@ function π_Λe_Γc(f::CellField, Γc::Triangulation)
   return CellData.similar_cell_field(f,data,Γc,CellData.DomainStyle(f))
 end
 
+# Defineixo la funcio activant el DOF
 xC = zero_free_values(UΛc);
 if active_DOF != 0; xC[active_DOF] = 1.0; end
 fun_uC = FEFunction(UΛc,xC)
-# -----------------
-uC_intrp = Interpolable(fun_uC)
 
+# Interpolo la funcio del model lineal coarse al model lineal fine
+uC_intrp = Interpolable(fun_uC)
 fun_ue = interpolate(uC_intrp,UΛf)
 ue_c = π_Λe_Γc(fun_ue,Γc)
-
-
 
 
 
@@ -256,11 +295,6 @@ function func(problem::InterfaceProblem,u,v,λ,μ)
 
     invD = intrf.invD
     invA = intrf.invA
-  
-    da_fun(CT,zf,z_val) = sum(∫(    step_field(zf,z_val,intrf.Γf)*CT )*intrf.dΓf)
-    db_fun(CT,zf,z_val) = sum(∫( zf*step_field(zf,z_val,intrf.Γf)*CT )*intrf.dΓf)
-    da(z_val) = da_fun(intrf.CTf_2D,intrf.zf,z_val)
-    db(z_val) = db_fun(intrf.CTf_2D,intrf.zf,z_val)
   
     function f_da(x); z_val = x[end]; return sum( ∫(          step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
     function f_db(x); z_val = x[end]; return sum( ∫( intrf.zf*step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
@@ -288,39 +322,50 @@ function func(problem::InterfaceProblem,u,v,λ,μ)
   
     T = _my_tensor∘(intrf.zf, intrf.CTf_2D)
 
-    pts = get_cell_points(dΓfi)
-    T(pts)
-
     contr += ∫(λ_f⋅T⋅v + μ_f⋅T⋅u)*dΓfi
   end
   return contr
 end
 
-aΓ((u,λ),(v,μ)) = func(prob,u,v,λ,μ)
 aΩ((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+aΓ((u,λ),(v,μ)) = func(prob,u,v,λ,μ)
 
 a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
+#a((u,λ),(v,μ)) = aΩ((u,λ),(v,μ))
+
+######fun_mult(u,v,λ,μ) = func(prob,u,v,λ,μ)
+######UU = get_trial_fe_basis(U)
+######VV = get_fe_basis(V)
+######contrA = fun_mult(UU[1],VV[1],UU[2],VV[2])
+######elementA = first(contrA.dict).second[1]
+
+intrf = intrf₀
+Γi = intrf.Γi
+
+get_cell_dof_ids(Vλ,Γi)
 
 u,λ = get_trial_fe_basis(U)
 v,μ = get_fe_basis(U)
 
 
-#Γi = BoundaryTriangulation(Γf,tags=["tag_23"])
-
-Γi = view(Γf,[1,2,3,4,5,6,7,8])
-
 pts = get_cell_points(Γi)
 λf = change_domain(λ,Γf,ReferenceDomain())
 λfi = change_domain(λf,Γi,ReferenceDomain())
+λfi(pts)
 
-
-ui = change_domain(u,prob.intrf[1].Γi,ReferenceDomain())
+#ui = change_domain(u,prob.intrf[1].Γi,ReferenceDomain())
 
 A = assemble_matrix(a,U,V)
 
+#for i in 82:101
+#  println( maximum(A[i,:]) )
+#end
 
 
-l((v,μ₀,μ₁,μ₂,μ₃)) = ∫(v⋅f)*dΩ + ∫( μ_glo⋅ue_c )*dΓf
+
+f = VectorValue(0.0,0.0,0.0)
+dΓf = Measure(Γf, degree)
+l((v,μ)) = ∫(v⋅f)*dΩ + ∫(μ⋅ue_c)*dΓf
 
 b = assemble_vector(l,V)
 
@@ -336,10 +381,15 @@ solver = LinearFESolver(ls)
 xh = solve(op);
 uh, λh = xh;
 
-λ₀ = xh.single_fe_functions[2]
-λ₁ = xh.single_fe_functions[3]
-λ₂ = xh.single_fe_functions[4]
-λ₃ = xh.single_fe_functions[5]
+get_free_dof_values(λh)
+
+x = get_free_dof_values(xh)
+xλ = Gridap.MultiField.restrict_to_field(U,x,2)
+
+#λ₀ = xh.single_fe_functions[2]
+#λ₁ = xh.single_fe_functions[3]
+#λ₂ = xh.single_fe_functions[4]
+#λ₃ = xh.single_fe_functions[5]
 
 
 writevtk(Ω,"models/"*prblName*"/"*prblName,
