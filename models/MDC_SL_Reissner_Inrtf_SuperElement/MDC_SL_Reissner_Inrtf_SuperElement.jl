@@ -135,25 +135,25 @@ axis_int_coord = [face_pos₀,face_pos₁,face_pos₂,face_pos₃]
 inv_list = [false,false,true,true]
 
 
-global_n2o_faces = Vector{Int}(undef, 0)
-global_child_ids = Vector{Int}(undef, 0)
-partial_glues = AdaptivityGlue[]
+global global_n2o_faces = Vector{Int}(undef, 0)
+global global_child_ids = Vector{Int}(undef, 0)
+global partial_glues = AdaptivityGlue[]
 
-totalColumns = 0
-n_refs = 0
+global totalColumns = 0
+global n_refs = 0 # Divisio vertical
 for iintrf in eachindex(Γ)
   n2o_faces, child_ids, o2n_faces = get_comp_glue(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
   n_coarse = length(o2n_faces)
-  n_refs = length(o2n_faces[1])
+  global n_refs = length(o2n_faces[1])
 
   n2o_faces[3] .+= totalColumns
   rrules = Fill(RefinementRule(QUAD,(1,n_refs)),n_coarse)
   glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
   push!(partial_glues, glue)
 
-  global_n2o_faces = vcat(global_n2o_faces, n2o_faces[3])
-  global_child_ids = vcat(global_child_ids, child_ids)
-  totalColumns += n_coarse
+  global global_n2o_faces = vcat(global_n2o_faces, n2o_faces[3])
+  global global_child_ids = vcat(global_child_ids, child_ids)
+  global totalColumns += n_coarse
 end
 
 global_rrules = Fill(RefinementRule(QUAD,(1,n_refs)),totalColumns)
@@ -251,7 +251,7 @@ VΛc = FESpace(modelΛc,reffeΛ,conformity=:H1); UΛc = TrialFESpace(VΛc)
 
 
 # Dic quin DOF vui activar
-active_DOF = 1
+active_DOF = 5
 
 _get_y(x) = VectorValue(x[2])
 function π_Λe_Γc(f::CellField, Γc::Triangulation)
@@ -368,6 +368,8 @@ dΓf = Measure(Γf, degree)
 l((v,μ)) = ∫(v⋅f)*dΩ + ∫(μ⋅ue_c)*dΓf
 
 b = assemble_vector(l,V)
+
+b[(Uu.nfree+1):end]
 
 ##--------------------------------------------------
 #Multiplicadors

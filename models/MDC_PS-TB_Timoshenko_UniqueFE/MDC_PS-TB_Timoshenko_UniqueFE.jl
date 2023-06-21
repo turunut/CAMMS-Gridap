@@ -40,10 +40,10 @@ modlType = PlaneStress()
 CT1 = CT_Isotrop(1000, 0.2)
 ct1 = modModel.computeCT(modlType, CT1)
 
-CT2 = CT_Isotrop( 100, 0.4)
+CT2 = CT_Isotrop(1000, 0.2) # CT_Isotrop( 100, 0.4)
 ct2 = modModel.computeCT(modlType, CT2)
 
-CT3 = CT_Isotrop( 300, 0.3)
+CT3 = CT_Isotrop(1000, 0.2) # CT_Isotrop( 300, 0.3)
 ct3 = modModel.computeCT(modlType, CT3)
 
 
