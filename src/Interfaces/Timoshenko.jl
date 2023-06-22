@@ -1,5 +1,5 @@
 
-struct Intrf_Timoshenko <: inter2D
+mutable struct Intrf_Timoshenko <: inter2D
   Γ::Triangulation
   Ω::Triangulation
   dΓ::Measure
@@ -20,47 +20,53 @@ struct Intrf_Timoshenko <: inter2D
   Aa::Float64
   Ab::Float64
   Ainv::Float64
+
+  Intrf_Timoshenko() = new()
 end
 function Intrf_Timoshenko(Γ::Triangulation, Ω::Triangulation, degree::Int64, Ef::CellField, zf::CellField)
-  dΓ = Measure(Γ,degree)
+  intrf = Intrf_Timoshenko()
+
+  intrf.Γ = Γ
+  intrf.Ω = Ω
+  intrf.Ef = Ef
+  intrf.zf = zf
+
+  intrf.dΓ = Measure(Γ,degree)
   
-  Da_fun(Ef)    = sum(∫(       Ef )*dΓ)
-  Db_fun(Ef,zf) = sum(∫(    zf*Ef )*dΓ)
-  Dd_fun(Ef,zf) = sum(∫( zf*zf*Ef )*dΓ)
-  S__fun(Ef)    = sum(∫(       Ef )*dΓ)
-  L__fun = sum(∫(   1.0 )*dΓ)               
-  I__fun = sum(∫( zf*zf )*dΓ)
+  Da_fun(Ef)    = sum(∫(       Ef )*intrf.dΓ)
+  Db_fun(Ef,zf) = sum(∫(    zf*Ef )*intrf.dΓ)
+  Dd_fun(Ef,zf) = sum(∫( zf*zf*Ef )*intrf.dΓ)
+  S__fun(Ef)    = sum(∫(       Ef )*intrf.dΓ)
+  L__fun = sum(∫(   1.0 )*intrf.dΓ)               
+  I__fun = sum(∫( zf*zf )*intrf.dΓ)
   
-  Da = Da_fun(Ef)
-  Db = Db_fun(Ef,zf)
-  Dd = Dd_fun(Ef,zf)
-  Dinv = 1.0/(Dd*Da-Db^2)
+  intrf.Da = Da_fun(Ef)
+  intrf.Db = Db_fun(Ef,zf)
+  intrf.Dd = Dd_fun(Ef,zf)
+  intrf.Dinv = 1.0/(intrf.Dd*intrf.Da-intrf.Db^2)
 
+  function f_da(x); z_val = x[end]; return sum( ∫(    step_field(zf,z_val,Γ)*Ef )intrf.dΓ ); end
+  function f_db(x); z_val = x[end]; return sum( ∫( zf*step_field(zf,z_val,Γ)*Ef )intrf.dΓ ); end
 
+  intrf.da_cf = CellField(f_da,Γ)
+  intrf.db_cf = CellField(f_db,Γ)
 
-  function f_da(x); z_val = x[end]; return sum( ∫(    step_field(zf,z_val,Γ)*Ef )dΓ ); end
-  function f_db(x); z_val = x[end]; return sum( ∫( zf*step_field(zf,z_val,Γ)*Ef )dΓ ); end
+  # Dona el mateix  
+  Aa_v2 = sum( ∫( intrf.da_cf )*intrf.dΓ )#; println(Aa_v2)
+  Ab_v2 = sum( ∫( intrf.db_cf )*intrf.dΓ )#; println(Ab_v2)
 
-  da_cf = CellField(f_da,Γ)
-  db_cf = CellField(f_db,Γ)
+  da(z_val) = sum(∫(    step_field(zf,z_val,Γ)*Ef )*intrf.dΓ)
+  db(z_val) = sum(∫( zf*step_field(zf,z_val,Γ)*Ef )*intrf.dΓ)
+  intrf.Aa = sum( ∫( da∘(zf) )*intrf.dΓ )
+  intrf.Ab = sum( ∫( db∘(zf) )*intrf.dΓ )
+  intrf.Ainv = 1.0/(intrf.Ab*intrf.Da-intrf.Aa*intrf.Db)
+
+  intrf.L = L__fun
+  intrf.I = I__fun
   
-  Aa_v2 = sum( ∫( da_cf )*dΓ ); println(Aa_v2)
-  Ab_v2 = sum( ∫( db_cf )*dΓ ); println(Ab_v2)
+  intrf.rot_cf = get_rot_arr(Γ)
 
-
-
-  da(z_val) = sum(∫(    step_field(zf,z_val,Γ)*Ef )*dΓ)
-  db(z_val) = sum(∫( zf*step_field(zf,z_val,Γ)*Ef )*dΓ)
-  Aa = sum( ∫( da∘(zf) )*dΓ )
-  Ab = sum( ∫( db∘(zf) )*dΓ )
-  Ainv = 1.0/(Ab*Da-Aa*Db)
-
-  L  = L__fun
-  I  = I__fun
-  
-  rot_cf = get_rot_arr(Γ)
-
-  return Intrf_Timoshenko(Γ,Ω,dΓ,rot_cf,Ef,zf,I,L,Da,Db,Dd,Dinv, da_cf,db_cf,  Aa,Ab,Ainv)    
+  return intrf
 end
 
 function contribute_matrix(intrf::Intrf_Timoshenko, U_basis, V_basis,

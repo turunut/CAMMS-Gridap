@@ -79,6 +79,18 @@ z_coord(x) = x[2]; zf = CellField(z_coord,Ω)
 intrfA = Intrf_Timoshenko(Γa, Ω, degree, Ef, zf)
 intrfB = Intrf_Timoshenko(Γb, Ω, degree, Ef, zf)
 
+#intrfA.Aa = 50000
+#intrfA.Ab = -83333.333
+#intrfA.Ainv = 1.0/(intrfA.Ab*intrfA.Da-intrfA.Aa*intrfA.Db)
+#
+#intrfB.Aa = 50000
+#intrfB.Ab = -83333.333
+#intrfB.Ainv = 1.0/(intrfB.Ab*intrfB.Da-intrfB.Aa*intrfB.Db)
+
+
+
+
+
 #ptsA = get_cell_points(intrfA.Γ)
 #print(intrfA.rot_cf(ptsA)[1][1])
 #
