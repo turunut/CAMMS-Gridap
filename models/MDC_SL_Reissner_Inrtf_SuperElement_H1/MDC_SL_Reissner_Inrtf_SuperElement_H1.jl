@@ -16,7 +16,7 @@ using GridapGmsh
 
 using FillArrays
 
-prblName = "MDC_SL_Reissner_Inrtf_SuperElement"
+prblName = "MDC_SL_Reissner_Inrtf_SuperElement_H1"
 projFldr = pwd()
 
 order  = 2
@@ -194,8 +194,8 @@ Uu = TrialFESpace(Vu)
 
 # Definim l'espai de l'acoplament
 dofs  = 5
-reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
-Vλ = FESpace(Γc,reffe,conformity=:L2)
+reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
+Vλ = FESpace(Γc,reffe)
 Uλ = TrialFESpace(Vλ)
 
 # Ajuntem els dos espais anteriors
@@ -320,19 +320,17 @@ a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
 ######contrA = fun_mult(UU[1],VV[1],UU[2],VV[2])
 ######elementA = first(contrA.dict).second[1]
 
-intrf = intrf₀
-Γi = intrf.Γi
-
-get_cell_dof_ids(Vλ,Γi)
-
-u,λ = get_trial_fe_basis(U)
-v,μ = get_fe_basis(U)
-
-
-pts = get_cell_points(Γi)
-λf = change_domain(λ,Γf,ReferenceDomain())
-λfi = change_domain(λf,Γi,ReferenceDomain())
-λfi(pts)
+##intrf = intrf₀
+##Γi = intrf.Γi
+##get_cell_dof_ids(Vλ,Γi)
+##u,λ = get_trial_fe_basis(U)
+##v,μ = get_fe_basis(U)
+##
+##
+##pts = get_cell_points(Γi)
+##λf = change_domain(λ,Γf,ReferenceDomain())
+##λfi = change_domain(λf,Γi,ReferenceDomain())
+##λfi(pts)
 
 #ui = change_domain(u,prob.intrf[1].Γi,ReferenceDomain())
 
@@ -363,7 +361,7 @@ solver = LinearFESolver(ls)
 xh = solve(op);
 uh, λh = xh;
 
-for i in 1:5:(5*partition[1])
+for i in 1:5:(5*partition[1]+1)
   println(get_free_dof_values(λh)[i])
 end
 
