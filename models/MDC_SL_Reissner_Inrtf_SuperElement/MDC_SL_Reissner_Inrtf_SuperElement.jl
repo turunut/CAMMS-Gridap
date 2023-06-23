@@ -363,10 +363,12 @@ solver = LinearFESolver(ls)
 xh = solve(op);
 uh, λh = xh;
 
-println(get_free_dof_values(λh))
+for i in 1:5:(5*32)
+  println(get_free_dof_values(λh)[i])
+end
 
-x = get_free_dof_values(xh)
-xλ = Gridap.MultiField.restrict_to_field(U,x,2)
+#x = get_free_dof_values(xh)
+#xλ = Gridap.MultiField.restrict_to_field(U,x,2)
 
 #λ₀ = xh.single_fe_functions[2]
 #λ₁ = xh.single_fe_functions[3]
