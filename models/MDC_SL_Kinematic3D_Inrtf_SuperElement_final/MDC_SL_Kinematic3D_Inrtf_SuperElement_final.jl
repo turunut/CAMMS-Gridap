@@ -25,7 +25,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (12,12,6)
+partition = (30,30,8)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -128,10 +128,10 @@ CTf = get_CT_CellField(modlType, CTs, tags, Ω)
 
 f = VectorValue(0.0,0.0,0.0)
 
-ue_c₀ = get_line_distribution(3, intrf₀, reffe_e₀, Ue₀, 5)
+ue_c₀ = get_line_distribution(3, intrf₀, reffe_e₀, Ue₀, 1)
 ue_c₁ = get_line_distribution(3, intrf₁, reffe_e₁, Ue₁, 0)
 ue_c₂ = get_line_distribution(3, intrf₂, reffe_e₂, Ue₂, 0)
-ue_c₃ = get_line_distribution(3, intrf₃, reffe_e₃, Ue₃, 0)
+ue_c₃ = get_line_distribution(3, intrf₃, reffe_e₃, Ue₃, 10)
 
 #xe₂ = zero_free_values(Ue₂); xe₂[13] = 0.0
 #ue₂ = FEFunction(Ue₂,xe₂)

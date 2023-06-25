@@ -18,7 +18,7 @@ using FillArrays
 prblName = "MDC_SL_Kinematic3D_Intrf_UniqueFE"
 projFldr = pwd()
 
-order = 1
+order = 2
 degree = 2*order
 
 ############################################################################################
@@ -74,7 +74,7 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 ############################################################################################
 
 axis_id = 1; face_B1_pos = maximum(lazy_map(c->c[axis_id],int_coords))
-intrf  = Intrf_Kinematic3D(Γ, int_coords, axis_id, face_B1_pos, degree)
+intrf  = Intrf_Kinematic3D(Γ, int_coords, axis_id, face_B1_pos, degree, false)
 
 ############################################################################################
 # FESpaces 
@@ -123,7 +123,7 @@ end
 
 f = VectorValue(0.0,0.0,0.0)
 
-xe = zero_free_values(Ue); xe[16] = 1.0
+xe = zero_free_values(Ue); xe[22] = 1.0
 ue = FEFunction(Ue,xe)
 ue_c = π_Λe_Γc(ue,intrf.Γc)
 

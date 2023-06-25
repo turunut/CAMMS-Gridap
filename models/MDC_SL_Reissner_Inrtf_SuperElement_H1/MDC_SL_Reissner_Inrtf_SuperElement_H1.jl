@@ -26,7 +26,7 @@ degree = 2*order
 # Definim el model volumetric
 
 domain = (0,4,0,4,-0.5,0.5)
-partition = (8,8,4)
+partition = (24,24,8)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")

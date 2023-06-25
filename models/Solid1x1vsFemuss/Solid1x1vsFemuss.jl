@@ -93,6 +93,7 @@ a(u,v) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 l(v)   = 0
 
 A = assemble_matrix(a,U,V0)
+L = assemble_vector(l,V0)
 
 
 #--------------------------------------------------
@@ -104,6 +105,8 @@ ls = LUSolver()
 solver = LinearFESolver(ls)
 
 uh = solve(op)
+
+reacc = A*uh.free_values
 
 writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>uh,

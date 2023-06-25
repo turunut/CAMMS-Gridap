@@ -4,6 +4,7 @@ module modInterface
   export get_line_model_triangulation, get_line_test_trial_spaces, get_line_distribution
   export Intrf_Timoshenko, Intrf_Kinematic2D
   export Intrf_Reissner,   Intrf_Kinematic3D
+  export Intrf_Kinematic3DV2
   export Intrf_ReissnerV2
 
   export defineExternalLine
@@ -31,6 +32,7 @@ module modInterface
   include("Interfaces/Inter3D.jl")
   include("Interfaces/Kinematic2D.jl")
   include("Interfaces/Kinematic3D.jl")
+  include("Interfaces/Kinematic3DV2.jl")
   include("Interfaces/Timoshenko.jl")
   include("Interfaces/Reissner.jl")
   include("Interfaces/ReissnerV2.jl")
