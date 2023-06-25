@@ -26,7 +26,7 @@ degree = 2*order
 # Definim el model volumetric
 
 domain = (0,4,0,4,-0.5,0.5)
-partition = (10,10,1)
+partition = (5,5,1)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -194,10 +194,10 @@ Uu = TrialFESpace(Vu)
 
 # Definim l'espai de l'acoplament
 dofs  = 3
-#reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
-#Vλ = FESpace(Γc,reffe)
-reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
-Vλ = FESpace(Γc,reffe;conformity=:L2)
+reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
+Vλ = FESpace(Γc,reffe)
+#reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
+#Vλ = FESpace(Γc,reffe;conformity=:L2)
 Uλ = TrialFESpace(Vλ)
 
 # Ajuntem els dos espais anteriors
