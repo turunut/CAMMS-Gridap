@@ -26,7 +26,7 @@ degree = 2*order
 # Definim el model volumetric
 
 domain = (0,4,0,4,-0.5,0.5)
-partition = (25,25,1)
+partition = (2,2,1)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -139,6 +139,9 @@ axis_id = [axis_id₀, axis_id₁, axis_id₂,axis_id₃]
 axis_int_coord = [face_pos₀,face_pos₁,face_pos₂,face_pos₃]
 inv_list = [false,false,true,true]
 
+
+global global_n2o_faces = Vector{Int}(undef, 0)
+global global_child_ids = Vector{Int}(undef, 0)
 global partial_glues = AdaptivityGlue[]
 
 global totalColumns = 0
@@ -149,39 +152,16 @@ for iintrf in eachindex(Γ)
   global n_refs = length(o2n_faces[1])
 
   n2o_faces[3] .+= totalColumns
-
-  ref_grid_domain = (!inv_list[iintrf]) ? (0,1,0,1) : (1,0,0,1)
-  ref_grid = Geometry.UnstructuredDiscreteModel(CartesianDiscreteModel(ref_grid_domain,(1,n_refs)))
-  rr = Adaptivity.RefinementRule(Adaptivity.GenericRefinement(),QUAD,ref_grid)
-  rrules = Fill(rr,n_coarse)
+  rrules = Fill(RefinementRule(QUAD,(1,n_refs)),n_coarse)
   glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
   push!(partial_glues, glue)
+
+  global global_n2o_faces = vcat(global_n2o_faces, n2o_faces[3])
+  global global_child_ids = vcat(global_child_ids, child_ids)
   global totalColumns += n_coarse
 end
 
-nF = num_cells(Γ₉)
-global_n2o_faces = zeros(Int,nF)
-global_child_ids = zeros(Int,nF)
-global_rrules_data = Vector{typeof(first(first(partial_glues).refinement_rules))}(undef,length(partial_glues))
-global_rrules_ptrs = zeros(Int32,totalColumns)
-
-global nCoarse = 1
-boundary_faces = Γ₉.glue.face_to_bgface
-for (i,glue,Γi) in zip(1:length(partial_glues),partial_glues,Γ)
-  interface_faces = Γi.glue.face_to_bgface
-  face_map = map(face->findfirst(x->x==face,boundary_faces),interface_faces)
-  global_n2o_faces[face_map] .= glue.n2o_faces_map[3]
-  global_child_ids[face_map] .= glue.n2o_cell_to_child_id
-  global_rrules_data[i] = glue.refinement_rules.value
-
-  n_coarse_i = length(glue.n2o_cell_to_child_id)
-  global_rrules_ptrs[nCoarse:nCoarse+n_coarse_i-1] .= i
-  global nCoarse += n_coarse_i
-end
-@assert all(global_n2o_faces .!= 0)
-@assert all(global_child_ids .!= 0)
-
-global_rrules = CompressedArray(global_rrules_data,global_rrules_ptrs)
+global_rrules = Fill(RefinementRule(QUAD,(1,n_refs)),totalColumns)
 glue = AdaptivityGlue([Int[],Int[],global_n2o_faces],global_child_ids,global_rrules) # From coarse to fine
 
 cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true,false))
@@ -314,30 +294,25 @@ a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
 ######contrA = fun_mult(UU[1],VV[1],UU[2],VV[2])
 ######elementA = first(contrA.dict).second[1]
 
-#intrf = intrf₀
-#intrf = intrf₃
-#Γi = intrf.Γi.trian
-#dΓfi = Measure(Γi,4)
-#u,λ = get_trial_fe_basis(U);
-#v,μ = get_fe_basis(U);
-#
-#pts = get_cell_points(Γi)
-#λf = change_domain(λ,Γf,ReferenceDomain())
-#μf = change_domain(μ,Γf,ReferenceDomain())
-#
-#arr = get_array(∫( (λf⋅v) + (μf⋅u) )*dΓfi)
-#
-##for (i,intrf) in enumerate([intrf₀,intrf₃])
-#  intrf = intrf₃
-#  println(i)
-#  Γi = intrf.Γi
-#  pts = get_cell_points(Γi)
-#  ux = u(pts)
-#  λx = λf(pts)
+intrf = intrf₀
+intrf = intrf₃
+Γi = intrf.Γi
+dΓfi = intrf.dΓi
+u,λ = get_trial_fe_basis(U);
+v,μ = get_fe_basis(U);
 
+pts = get_cell_points(Γi)
+λf = change_domain(λ,Γf,ReferenceDomain())
+μf = change_domain(μ,Γf,ReferenceDomain())
 
-#end
+arr = get_array(∫( (λf⋅v) + (μf⋅u) )*dΓfi)
 
+for (i,intrf) in enumerate(prob.intrf)
+  println(i)
+  Γi = intrf.Γi
+  println(map(ids->length(unique(ids)),get_cell_dof_ids(Uu,Γi)))
+  println(map(ids->length(unique(ids)),get_cell_dof_ids(Uλ,Γi)))
+end
 
 
 #ui = change_domain(u,prob.intrf[1].Γi,ReferenceDomain())
@@ -351,20 +326,20 @@ for j in [1090,1093,1096,1099]
 end
 
 
-tol = 1.e-6
+tol = 1.e-18
 for i in 1:1149
-  if abs(A[3970,i]) > tol; 
-    println(i,"  ->  ",A[3970,i])
+  if abs(A[1090,i]) > tol; 
+    println(i,"  ->  ",A[1090,i])
   end
 end
 for i in 1:1149
-  if abs(A[3973,i]) > tol; 
-    println(i,"  ->  ",A[3973,i])
+  if abs(A[1093,i]) > tol; 
+    println(i,"  ->  ",A[1093,i])
   end
 end
 for i in 1:1149
-  if abs(A[3976,i]) > tol
-    println(i,"  ->  ",A[3976,i])
+  if abs(A[1146,i]) > tol
+    println(i,"  ->  ",A[1146,i])
   end
 end
 ###for i in 1:1149
