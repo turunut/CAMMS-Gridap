@@ -24,7 +24,7 @@ degree = 2*order
 ############################################################################################
 # Fine model
 domain = (0,4,0,4,-0.5,0.5)
-partition = (16,16,4)
+partition = (5,5,1)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -123,7 +123,7 @@ end
 
 f = VectorValue(0.0,0.0,0.0)
 
-xe = zero_free_values(Ue); xe[22] = 1.0
+xe = zero_free_values(Ue); xe[1] = 1.0
 ue = FEFunction(Ue,xe)
 ue_c = π_Λe_Γc(ue,intrf.Γc)
 
@@ -141,6 +141,19 @@ a((u,λ),(v,μ))  = aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
 la((v,μ)) = contribute_vector(intrf, (v,μ), 2, ue_c)
 
 l((v,μ)) = ∫(v⋅f)*dΩ + la((v,μ))
+
+
+
+A = assemble_matrix(a,U,V)
+
+tol = 1.e-6
+for i in 1:993
+  if abs(A[993,i]) > tol; 
+    println(i,"  ->  ",A[993,i])
+  end
+end
+
+
 
 
 ##--------------------------------------------------

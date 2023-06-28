@@ -116,7 +116,7 @@ A = assemble_matrix(a,U,V)
 λA = assemble_matrix(λa,U,V)
 
 for i in 1:1089
-  if abs( λA[1093,i] ) > 0.000001; println(λA[1093,i]); end 
+  if abs( λA[1125,i] ) > 0.000001; println(λA[1125,i]); end 
 end
 
 for i in 1:1089
