@@ -26,7 +26,7 @@ degree = 2*order
 # Definim el model volumetric
 
 domain = (0,4,0,4,-0.5,0.5)
-partition = (25,25,1)
+partition = (8,8,4)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -174,7 +174,7 @@ for (i,glue,Γi) in zip(1:length(partial_glues),partial_glues,Γ)
   global_child_ids[face_map] .= glue.n2o_cell_to_child_id
   global_rrules_data[i] = glue.refinement_rules.value
 
-  n_coarse_i = length(glue.n2o_cell_to_child_id)
+  n_coarse_i = num_cells(Γi) ÷ n_refs
   global_rrules_ptrs[nCoarse:nCoarse+n_coarse_i-1] .= i
   global nCoarse += n_coarse_i
 end
@@ -207,17 +207,17 @@ intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψ, Γ₃_glue, CTf_2D[1], degree)
 #--------------------------------------------------
 # Definim els FE del model volumetric i dels multiplicadors de lagrange (un per cada columna delements) 
 # Definim el model 3D
-reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
+reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order;space=:S)
 
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
 
 # Definim l'espai de l'acoplament
 dofs  = 3
-reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
-Vλ = FESpace(Γc,reffe)
-#reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
-#Vλ = FESpace(Γc,reffe;conformity=:L2)
+#reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
+#Vλ = FESpace(Γc,reffe)
+reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
+Vλ = FESpace(Γc,reffe;conformity=:L2)
 Uλ = TrialFESpace(Vλ)
 
 # Ajuntem els dos espais anteriors

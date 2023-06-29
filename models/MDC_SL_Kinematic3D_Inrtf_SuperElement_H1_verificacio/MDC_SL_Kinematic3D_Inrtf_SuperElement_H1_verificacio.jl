@@ -25,8 +25,8 @@ degree = 2*order
 #--------------------------------------------------
 # Definim el model volumetric
 
-domain = (0,4,0,4,-0.5,0.5)
-partition = (1,1,1)
+domain = (0,1,0,1,0,1)
+partition = (2,2,1)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -37,51 +37,11 @@ add_tag_from_tags!(labels,"faceY1",[24])
 add_tag_from_tags!(labels,"faceX0",[25])
 add_tag_from_tags!(labels,"faceX1",[26])
 
-
-#--------------------------------------------------
-# Definim les propietats del model solid 
-
-modlType = Solid()
-
-CT1 = CT_Isotrop(72000, 0.3)
-ct1 = modModel.computeCT(modlType, CT1)
-
-CT2 = CT_Isotrop(72000, 0.3)
-ct2 = modModel.computeCT(modlType, CT2)
-
-
 #--------------------------------------------------
 # Definim la triangulacio del model solid
 
 Ω  = Triangulation(model)
 dΩ = Measure(Ω,degree)
-
-
-#--------------------------------------------------
-# Definim el Cell Field de CT del model solid
-
-dimens  = 3
-matFlag = []
-
-tags = get_tags(matFlag, labels, dimens)
-
-CTs = hcat(ct1)
-
-CTf = get_CT_CellField(modlType, CTs, tags, Ω)
-
-
-#---------------------------
-# Definim les propietats de cada layer per fer un model Shell equivalent
-
-modlType_2D = PlaneStress()
-
-ct1_2D = modModel.computeCT(modlType_2D, CT1, true)
-ct2_2D = modModel.computeCT(modlType_2D, CT2, true)
-
-CTs_2D = hcat(ct1_2D)
-
-CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
-
 
 #--------------------------------------------------
 # Acotem les triangulacions de les interficies
@@ -117,20 +77,10 @@ int_coords = map(N->VectorValue(Int(floor(N[1]/tol)),Int(floor(N[2]/tol)),Int(fl
 # Definim leix i posicio en aquest de cada una de les interficies
 
 z_coord(x) = x[end]; zf = CellField(z_coord,Ω)
-
 axis_id₀ = 2; face_pos₀ = minimum(lazy_map(c->c[axis_id₀],int_coords))
-
 axis_id₁ = 1; face_pos₁ = maximum(lazy_map(c->c[axis_id₁],int_coords))
-
 axis_id₂ = 2; face_pos₂ = maximum(lazy_map(c->c[axis_id₂],int_coords))
-
 axis_id₃ = 1; face_pos₃ = minimum(lazy_map(c->c[axis_id₃],int_coords))
-
-#glue₉ = create_interface_global([Γ₀,Γ₁,Γ₂,Γ₃],
-#                                int_coords, 
-#                                [axis_id₀, axis_id₁, axis_id₂,axis_id₃],
-#                                [face_pos₀,face_pos₁,face_pos₂,face_pos₃],
-#                                [false,false,true,true])
 
 # Definim el model global 1x1 i la glue corresponent de totes les interficies
 
@@ -139,26 +89,30 @@ axis_id = [axis_id₀, axis_id₁, axis_id₂,axis_id₃]
 axis_int_coord = [face_pos₀,face_pos₁,face_pos₂,face_pos₃]
 inv_list = [false,false,true,true]
 
-global partial_glues = AdaptivityGlue[]
+
+rr = Adaptivity.RefinementRule(Adaptivity.GenericRefinement(),QUAD,Geometry.UnstructuredDiscreteModel(CartesianDiscreteModel((0,1,0,1),(1,n_refs))))
+rri = Adaptivity.RefinementRule(Adaptivity.GenericRefinement(),QUAD,Geometry.UnstructuredDiscreteModel(CartesianDiscreteModel((1,0,0,1),(1,n_refs))))
+
+global partial_glues = Vector{AdaptivityGlue}(undef,length(Γ))
 
 global totalColumns = 0
 global n_refs = 0 # Divisio vertical
 for iintrf in eachindex(Γ)
   n2o_faces, child_ids, o2n_faces = get_comp_glue(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
-  println(n2o_faces)
-  println(child_ids)
-  println(o2n_faces)
+
   n_coarse = length(o2n_faces)
   global n_refs = length(o2n_faces[1])
 
   n2o_faces[3] .+= totalColumns
 
-  ref_grid_domain = (!inv_list[iintrf]) ? (0,1,0,1) : (1,0,0,1)
-  ref_grid = Geometry.UnstructuredDiscreteModel(CartesianDiscreteModel(ref_grid_domain,(1,n_refs)))
-  rr = Adaptivity.RefinementRule(Adaptivity.GenericRefinement(),QUAD,ref_grid)
-  rrules = Fill(rr,n_coarse)
+  #ref_grid_domain = (!inv_list[iintrf]) ? (0,1,0,1) : (1,0,0,1)
+  #ref_grid = Geometry.UnstructuredDiscreteModel(CartesianDiscreteModel(ref_grid_domain,(1,n_refs)))
+  #rr = Adaptivity.RefinementRule(Adaptivity.GenericRefinement(),QUAD,ref_grid)
+
+  _rr = (!inv_list[iintrf]) ? rr : rri
+  rrules = Fill(_rr,n_coarse)
   glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
-  push!(partial_glues, glue)
+  partial_glues[iintrf] = glue
   global totalColumns += n_coarse
 end
 
@@ -177,7 +131,7 @@ for (i,glue,Γi) in zip(1:length(partial_glues),partial_glues,Γ)
   global_child_ids[face_map] .= glue.n2o_cell_to_child_id
   global_rrules_data[i] = glue.refinement_rules.value
 
-  n_coarse_i = length(glue.n2o_cell_to_child_id)
+  n_coarse_i = num_cells(Γi)÷n_refs
   global_rrules_ptrs[nCoarse:nCoarse+n_coarse_i-1] .= i
   global nCoarse += n_coarse_i
 end
@@ -186,6 +140,13 @@ end
 
 global_rrules = CompressedArray(global_rrules_data,global_rrules_ptrs)
 glue = AdaptivityGlue([Int[],Int[],global_n2o_faces],global_child_ids,global_rrules) # From coarse to fine
+
+Geometry.get_cell_coordinates(Γ₉)
+glue.n2o_faces_map[3]
+
+rr_fine = Adaptivity.get_new_cell_refinement_rules(glue)
+rr_coarse = glue.refinement_rules
+
 
 cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true,false))
 Γc  = Triangulation(cface_model)
@@ -210,14 +171,14 @@ intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψ, Γ₃_glue, CTf_2D[1], degree)
 #--------------------------------------------------
 # Definim els FE del model volumetric i dels multiplicadors de lagrange (un per cada columna delements) 
 # Definim el model 3D
-reffe_u  = ReferenceFE(lagrangian,VectorValue{1,Float64},order)
+reffe_u  = ReferenceFE(lagrangian,Float64,order)
 
-Vu = TestFESpace(model,reffe_u;conformity=:H1)
+Vu = TestFESpace(Γf ,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
 
 # Definim l'espai de l'acoplament
 dofs  = 1
-reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
+reffe = ReferenceFE(lagrangian,Float64,(1,1))
 Vλ = FESpace(Γc,reffe)
 #reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
 #Vλ = FESpace(Γc,reffe;conformity=:L2)
@@ -227,6 +188,22 @@ Uλ = TrialFESpace(Vλ)
 V = MultiFieldFESpace([Vu,Vλ])
 U = MultiFieldFESpace([Uu,Uλ])
 
+
+uf = get_fe_basis(Uu)
+uc = get_fe_basis(Uλ)
+ucf = change_domain(uc,Γf,ReferenceDomain())
+
+pts = get_cell_points(Γf)
+
+yf = lazy_map(Reindex(uf(pts)),f2c_cell_map)
+yc = lazy_map(Reindex(ucf(pts)),f2c_cell_map)
+
+
+
+f2c_cell_map = vcat(glue.o2n_faces_map...)
+
+f_dofs = lazy_map(Reindex(get_cell_dof_ids(Uu)),f2c_cell_map)
+c_dofs = get_cell_dof_ids(Uλ)
 
 #--------------------------------------------------
 # Model linea fine amb periodicitat als seus extrems

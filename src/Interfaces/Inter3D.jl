@@ -56,10 +56,10 @@ end
 
 function get_test_trial_spaces(intrf::inter3D)
   dofs = get_dofs(intrf)
-  #reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
-  #Vλ = FESpace(intrf.Γc,reffe,conformity=:L2)
-  reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
-  Vλ = FESpace(intrf.Γc,reffe)
+  reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
+  Vλ = FESpace(intrf.Γc,reffe,conformity=:L2)
+  #reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
+  #Vλ = FESpace(intrf.Γc,reffe)
   Uλ = TrialFESpace(Vλ)
   return Vλ, Uλ
 end
