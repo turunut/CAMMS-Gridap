@@ -207,17 +207,17 @@ intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψ, Γ₃_glue, CTf_2D[1], degree)
 #--------------------------------------------------
 # Definim els FE del model volumetric i dels multiplicadors de lagrange (un per cada columna delements) 
 # Definim el model 3D
-reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order;space=:S)
+reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)#;space=:S)
 
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
 
 # Definim l'espai de l'acoplament
 dofs  = 3
-#reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
-#Vλ = FESpace(Γc,reffe)
-reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
-Vλ = FESpace(Γc,reffe;conformity=:L2)
+reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},(1,0))
+Vλ = FESpace(Γc,reffe)
+#reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
+#Vλ = FESpace(Γc,reffe;conformity=:L2)
 Uλ = TrialFESpace(Vλ)
 
 # Ajuntem els dos espais anteriors
@@ -251,7 +251,7 @@ VΛc = FESpace(modelΛc,reffeΛ,conformity=:H1); UΛc = TrialFESpace(VΛc)
 
 #--------------------------------------------------
 # Dic quin DOF vui activar
-active_DOF = 15
+active_DOF = 1
 
 # Projeccio de la funcio en el model linea al llarg de leix Y del model 2D coarse de les interfaces
 _get_y(x) = VectorValue(x[2])
@@ -264,7 +264,7 @@ end
 
 # Defineixo la funcio activant el DOF
 xC = zero_free_values(UΛc);
-if active_DOF != 0; xC[active_DOF] = -1.0; end
+if active_DOF != 0; xC[active_DOF] = 1.0; end
 fun_uC = FEFunction(UΛc,xC)
 
 # Interpolo la funcio del model lineal coarse al model lineal fine
