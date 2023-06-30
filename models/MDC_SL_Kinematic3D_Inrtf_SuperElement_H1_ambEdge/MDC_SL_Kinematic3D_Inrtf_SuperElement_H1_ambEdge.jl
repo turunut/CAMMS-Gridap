@@ -231,14 +231,10 @@ Uλ = TrialFESpace(Vλ)
 #VΨ = TestFESpace(Ψ,reffe_Ψ;conformity=:H1)
 #UΨ = TrialFESpace(VΨ)
 
-VΨ₀ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-UΨ₀ = TrialFESpace(VΨ₀)
-VΨ₁ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-UΨ₁ = TrialFESpace(VΨ₁)
-VΨ₂ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-UΨ₂ = TrialFESpace(VΨ₂)
-VΨ₃ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-UΨ₃ = TrialFESpace(VΨ₃)
+VΨ₀ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₀ = TrialFESpace(VΨ₀)
+VΨ₁ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₁ = TrialFESpace(VΨ₁)
+VΨ₂ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₂ = TrialFESpace(VΨ₂)
+VΨ₃ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₃ = TrialFESpace(VΨ₃)
 
 # Ajuntem els dos espais anteriors
 V = MultiFieldFESpace([Vu,Vλ,VΨ₀,VΨ₁,VΨ₂,VΨ₃])
@@ -322,6 +318,10 @@ function func(problem::InterfaceProblem,u,v,λ,μ)
   return contr
 end
 
+function func_edge(u,v,α,β,dΨ)
+  return ∫( (α⋅v) + (β⋅u) )*dΨ
+end
+
 dΨ₀ = Measure(Ψ₀,degree)
 dΨ₁ = Measure(Ψ₁,degree)
 dΨ₂ = Measure(Ψ₂,degree)
@@ -329,10 +329,10 @@ dΨ₃ = Measure(Ψ₃,degree)
 
 aΩ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 aΓ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) = func(prob,u,v,λ,μ)
-aΨ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) = ∫( (α₀⋅v) + (β₀⋅u) )*dΨ₀ + 
-                                          ∫( (α₁⋅v) + (β₁⋅u) )*dΨ₁ + 
-                                          ∫( (α₂⋅v) + (β₂⋅u) )*dΨ₂ + 
-                                          ∫( (α₃⋅v) + (β₃⋅u) )*dΨ₃
+aΨ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) = func_edge(u,v,α₀,β₀,dΨ₀) + 
+                                          func_edge(u,v,α₁,β₁,dΨ₁) + 
+                                          func_edge(u,v,α₂,β₂,dΨ₂) + 
+                                          func_edge(u,v,α₃,β₃,dΨ₃)
 
 a((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) =  aΩ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) + 
                                           aΓ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) + 
@@ -372,14 +372,18 @@ a((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) =  aΩ((u,λ,α
 
 A = assemble_matrix(a,U,V)
 
-line = A.m-2
-for i in 1:7904
-  if abs( A[line,i] ) > 0.0
-    println( i,"   ",A[line,i] )
-  end
+#line = A.m-2
+#for i in 1:7904
+#  if abs( A[line,i] ) > 0.0
+#    println( i,"   ",A[line,i] )
+#  end
+#end
+
+function func_edge_vector(β,g,dΨ)
+  return ∫( β⋅g )*dΨ
 end
 
-f = VectorValue(0.0,0.0,0.0)
+f  = VectorValue(0.0,0.0,0.0)
 g₀ = VectorValue(1.0,0.0,0.0)
 g₁ = VectorValue(0.0,0.0,0.0)
 g₂ = VectorValue(0.0,0.0,0.0)
@@ -388,10 +392,10 @@ g₃ = VectorValue(0.0,0.0,0.0)
 dΓf = Measure(Γf, degree)
 l((v,μ,β₀,β₁,β₂,β₃)) = ∫(v⋅f)*dΩ + 
                        ∫(μ⋅ue_c)*dΓf + 
-                       ∫(β₀⋅g₀)*dΨ₀ + 
-                       ∫(β₁⋅g₁)*dΨ₁ + 
-                       ∫(β₂⋅g₂)*dΨ₂ + 
-                       ∫(β₃⋅g₃)*dΨ₃
+                       func_edge_vector(β₀,g₀,dΨ₀) + 
+                       func_edge_vector(β₁,g₁,dΨ₁) + 
+                       func_edge_vector(β₂,g₂,dΨ₂) + 
+                       func_edge_vector(β₃,g₃,dΨ₃)
              
 b = assemble_vector(l,V)
 
@@ -411,7 +415,7 @@ xh = solve(op);
 uh, λh, αh = xh;
 
 println(get_free_dof_values(αh)[1])
-for i in 1:3:(3*partition[1]+1)
+for i in 1:3:(3*partition[1])
   println(get_free_dof_values(λh)[i])
 end
 

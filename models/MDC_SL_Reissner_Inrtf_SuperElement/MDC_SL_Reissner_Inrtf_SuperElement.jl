@@ -96,7 +96,10 @@ CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 Γ₃ = BoundaryTriangulation(model,tags=["tag_25"])
 
 # Model lineal al llarg de lespessor
-Ψ = EdgeTriangulation(model,["tag_17"])
+Ψ₀ = EdgeTriangulation(model,["tag_17"])
+Ψ₁ = EdgeTriangulation(model,["tag_18"])
+Ψ₂ = EdgeTriangulation(model,["tag_20"])
+Ψ₃ = EdgeTriangulation(model,["tag_19"])
 
 
 #--------------------------------------------------
@@ -175,13 +178,10 @@ cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true
 Γ₂_glue = Gridap.Adaptivity.GluedTriangulation(Γ₂,Γc,partial_glues[3])
 Γ₃_glue = Gridap.Adaptivity.GluedTriangulation(Γ₃,Γc,partial_glues[4])
 
-intrf₀  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₀_glue, CTf_2D[1], degree)
-
-intrf₁  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₁_glue, CTf_2D[1], degree)
-
-intrf₂  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₂_glue, CTf_2D[1], degree)
-
-intrf₃  = Intrf_ReissnerV2(Ω, Γf, Ψ, Γ₃_glue, CTf_2D[1], degree)
+intrf₀  = Intrf_ReissnerV2(Ω, Γf, Ψ₀, Γ₀_glue, CTf_2D[1], degree)
+intrf₁  = Intrf_ReissnerV2(Ω, Γf, Ψ₁, Γ₁_glue, CTf_2D[1], degree)
+intrf₂  = Intrf_ReissnerV2(Ω, Γf, Ψ₂, Γ₂_glue, CTf_2D[1], degree)
+intrf₃  = Intrf_ReissnerV2(Ω, Γf, Ψ₃, Γ₃_glue, CTf_2D[1], degree)
 
 
 #--------------------------------------------------
@@ -198,9 +198,16 @@ reffe = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
 Vλ = FESpace(Γc,reffe,conformity=:L2)
 Uλ = TrialFESpace(Vλ)
 
+VΨ₀ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₀ = TrialFESpace(VΨ₀)
+VΨ₁ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₁ = TrialFESpace(VΨ₁)
+VΨ₂ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₂ = TrialFESpace(VΨ₂)
+VΨ₃ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64}); UΨ₃ = TrialFESpace(VΨ₃)
+
 # Ajuntem els dos espais anteriors
-V = MultiFieldFESpace([Vu,Vλ])
-U = MultiFieldFESpace([Uu,Uλ])
+#V = MultiFieldFESpace([Vu,Vλ])
+#U = MultiFieldFESpace([Uu,Uλ])
+V = MultiFieldFESpace([Vu,Vλ,VΨ₀,VΨ₁,VΨ₂,VΨ₃])
+U = MultiFieldFESpace([Uu,Uλ,UΨ₀,UΨ₁,UΨ₂,UΨ₃])
 
 
 #--------------------------------------------------
@@ -308,11 +315,56 @@ function func(problem::InterfaceProblem,u,v,λ,μ)
   return contr
 end
 
-aΩ((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
-aΓ((u,λ),(v,μ)) = func(prob,u,v,λ,μ)
 
-a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) + aΓ((u,λ),(v,μ))
-#a((u,λ),(v,μ)) = aΩ((u,λ),(v,μ))
+
+function func_edge(intrf,u,v,α,β,dΨ)
+  invD = intrf.invD
+  invA = intrf.invA
+
+  function f_da(x); z_val = x[end]; return sum( ∫(          step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
+  function f_db(x); z_val = x[end]; return sum( ∫( intrf.zf*step_field(intrf.zf,z_val,intrf.Ψ)*intrf.CTf_2D )intrf.dΨ ); end
+
+  function _my_tensor(z,CT_2D)
+    da_db_arr = zeros(4,2)
+
+    α_arr = invD ⋅ ( TensorValue{6,3}( 1.0, 0.0, 0.0,   z, 0.0, 0.0,
+                                       0.0, 1.0, 0.0, 0.0,   z, 0.0,
+                                       0.0, 0.0, 1.0, 0.0, 0.0,   z) ⋅ CT_2D )
+
+    AAA = f_da(z)
+    BBB = f_db(z)
+    
+    da_db_arr[1:2,1:2] = get_array( AAA )[1:2,1:2]
+    da_db_arr[3:4,1:2] = get_array( BBB )[1:2,1:2]
+    
+    β_arr = invA ⋅ ( TensorValue{4,2}( da_db_arr ) )
+    
+    A_arr = zeros(5,3)
+    A_arr[1:4,1:2] .= get_array( α_arr )[[1,3,4,6],[1,3]]
+    A_arr[5,3]      = get_array( β_arr )[1,1]
+    return TensorValue{5,3}(A_arr)
+  end
+
+  T = _my_tensor∘(intrf.zf, intrf.CTf_2D)
+
+  return ∫(α⋅T⋅v + β⋅T⋅u)*dΨ
+end
+
+dΨ₀ = Measure(Ψ₀,degree)
+dΨ₁ = Measure(Ψ₁,degree)
+dΨ₂ = Measure(Ψ₂,degree)
+dΨ₃ = Measure(Ψ₃,degree)
+
+aΩ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
+aΓ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) = func(prob,u,v,λ,μ)
+aΨ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) = func_edge(intrf₀,u,v,α₀,β₀,dΨ₀) + 
+                                          func_edge(intrf₁,u,v,α₁,β₁,dΨ₁) + 
+                                          func_edge(intrf₂,u,v,α₂,β₂,dΨ₂) + 
+                                          func_edge(intrf₃,u,v,α₃,β₃,dΨ₃)
+
+a((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) =  aΩ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) + 
+                                          aΓ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) + 
+                                          aΨ((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃))
 
 ######fun_mult(u,v,λ,μ) = func(prob,u,v,λ,μ)
 ######UU = get_trial_fe_basis(U)
@@ -325,8 +377,8 @@ intrf = intrf₀
 
 get_cell_dof_ids(Vλ,Γi)
 
-u,λ = get_trial_fe_basis(U)
-v,μ = get_fe_basis(U)
+u,λ = get_trial_fe_basis(U);
+v,μ = get_fe_basis(U);
 
 
 pts = get_cell_points(Γi)
@@ -342,9 +394,27 @@ A = assemble_matrix(a,U,V)
 #  println( maximum(A[i,:]) )
 #end
 
-f = VectorValue(0.0,0.0,0.0)
+function func_edge_vector(β,g,dΨ)
+  return ∫( β⋅g )*dΨ
+end
+
+f  = VectorValue(0.0,0.0,0.0)
+g₀ = VectorValue(1.0,0.0,0.0,0.0,0.0)
+g₁ = VectorValue(0.0,0.0,0.0,0.0,0.0)
+g₂ = VectorValue(0.0,0.0,0.0,0.0,0.0)
+g₃ = VectorValue(0.0,0.0,0.0,0.0,0.0)
+
 dΓf = Measure(Γf, degree)
-l((v,μ)) = ∫(v⋅f)*dΩ + ∫(μ⋅ue_c)*dΓf
+l((v,μ,β₀,β₁,β₂,β₃)) = ∫(v⋅f)*dΩ + 
+                       ∫(μ⋅ue_c)*dΓf + 
+                       #func_edge_vector(intrf₀,β₀,g₀,dΨ₀) + 
+                       #func_edge_vector(intrf₁,β₁,g₁,dΨ₁) + 
+                       #func_edge_vector(intrf₂,β₂,g₂,dΨ₂) + 
+                       #func_edge_vector(intrf₃,β₃,g₃,dΨ₃)
+                       func_edge_vector(β₀,g₀,dΨ₀) + 
+                       func_edge_vector(β₁,g₁,dΨ₁) + 
+                       func_edge_vector(β₂,g₂,dΨ₂) + 
+                       func_edge_vector(β₃,g₃,dΨ₃)
 
 b = assemble_vector(l,V)
 
