@@ -236,7 +236,7 @@ VΛc = FESpace(modelΛc,reffeΛ,conformity=:H1); UΛc = TrialFESpace(VΛc)
 
 #--------------------------------------------------
 # Dic quin DOF vui activar
-active_DOF = 1
+active_DOF = 3
 
 # Projeccio de la funcio en el model linea al llarg de leix Y del model 2D coarse de les interfaces
 _get_y(x) = VectorValue(x[2])
@@ -399,7 +399,7 @@ function func_edge_vector(β,g,dΨ)
 end
 
 f  = VectorValue(0.0,0.0,0.0)
-g₀ = VectorValue(1.0,0.0,0.0,0.0,0.0)
+g₀ = VectorValue(0.0,0.0,1.0,0.0,0.0)
 g₁ = VectorValue(0.0,0.0,0.0,0.0,0.0)
 g₂ = VectorValue(0.0,0.0,0.0,0.0,0.0)
 g₃ = VectorValue(0.0,0.0,0.0,0.0,0.0)
