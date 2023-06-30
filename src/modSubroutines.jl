@@ -50,7 +50,7 @@ module modSubroutines
   function EdgeTriangulation(model::DiscreteModel,tags)
     D = Geometry.num_cell_dims(model)
     labeling = get_face_labeling(model)
-    face_to_mask = get_face_mask(labeling,["tag_17"],D-2)
+    face_to_mask = get_face_mask(labeling,tags,D-2)
     face_to_bgface = findall(face_to_mask)
     return EdgeTriangulation(model,face_to_bgface)
   end
