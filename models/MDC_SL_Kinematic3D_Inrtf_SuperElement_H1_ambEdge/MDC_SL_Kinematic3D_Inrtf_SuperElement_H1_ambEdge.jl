@@ -414,8 +414,13 @@ solver = LinearFESolver(ls)
 xh = solve(op);
 uh, λh, αh = xh;
 
-println(get_free_dof_values(αh)[1])
-for i in 1:3:(3*partition[1])
+println(get_free_dof_values(αh)[2])
+
+for i in 2:3:(3*partition[1])
+  println(get_free_dof_values(λh)[i])
+end
+
+for i in (24*3+2):3:(24*4)
   println(get_free_dof_values(λh)[i])
 end
 
@@ -431,3 +436,6 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>uh,
                      "ε"=>∂(uh),
                      "σ"=>σ(CTf[1],∂(uh))])
+
+writevtk(Γf ,"models/"*prblName*"/"*prblName,
+         cellfields=["λ"=>λh])

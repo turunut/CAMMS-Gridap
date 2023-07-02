@@ -85,7 +85,8 @@ function Intrf_ReissnerV2(Ω, Γf, Ψ, Γi, CTf_2D, degree::Int64)
 
   invA = zeros(4,4)
   invA[1:2,1:2] = get_array(intrf.Aa)[1:2,1:2]
-  invA[3:4,1:2] = get_array(intrf.Da)[1:2,1:2]; invA[1:2,3:4] = get_array(intrf.Ab)[1:2,1:2]
+  invA[1:2,3:4] = get_array(intrf.Ab)[1:2,1:2]
+  invA[3:4,1:2] = get_array(intrf.Da)[1:2,1:2]
   invA[3:4,3:4] = get_array(intrf.Db)[1:2,1:2]
   intrf.invA = transpose(inv(invA))
   
