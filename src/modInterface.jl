@@ -11,6 +11,7 @@ module modInterface
   export interpolate_nodal_displ
   export create_interface_global
   export get_comp_glue
+  export get_comp_glue_without_corners
 
   using Gridap
   using Gridap.Arrays
@@ -116,6 +117,40 @@ module modInterface
         ind = findall(x->x==num, Γ.glue.face_to_bgface)[1]
         n2o_cells[ind] = islide
         child_ids[ind] = izpos
+      end  
+    end
+    
+    n2o_faces = [Int[],Int[],n2o_cells]
+    return n2o_faces,child_ids,c2f_faces
+  end
+
+
+  function get_comp_glue_without_corners(Γ::Triangulation, int_coords::Vector{VectorValue{3, Int64}}, axis_id::Int64, axis_int_coord::Int64, inv::Bool)
+    axis_p = [2,1][axis_id] # retorna laxis perpendicular al entrat
+
+    face_x = axis_int_coord
+    interface_faces = findall(c->c[axis_id]==face_x,int_coords)
+    interface_coords = view(int_coords,interface_faces)
+    
+    y_coords = sort(unique(map(c->c[axis_p],interface_coords)))[2:end-1]
+    #y_unique = sort(unique(map(c->c[axis_p],interface_coords)))
+    y_counts = [count(==(y),y_coords) for y in y_coords]
+    y_ptrs = Gridap.Adaptivity.counts_to_ptrs(y_counts)
+    
+    perm = sortperm(interface_coords,by=x->x[axis_p],rev=inv)
+    data = lazy_map(Reindex(interface_faces),perm)
+    c2f_faces = Table(data,y_ptrs)
+    
+    n2o_cells = zeros(Int, length(Γ.glue.face_to_bgface))
+    child_ids = zeros(Int, length(Γ.glue.face_to_bgface))
+    for (islide, slide_list) in enumerate(c2f_faces)
+      for (izpos, num) in enumerate(slide_list)
+        _ind = findall(x->x==num, Γ.glue.face_to_bgface)
+        if length(_ind) > 0
+          ind = _ind[1]
+          n2o_cells[ind] = islide
+          child_ids[ind] = izpos
+        end
       end  
     end
     

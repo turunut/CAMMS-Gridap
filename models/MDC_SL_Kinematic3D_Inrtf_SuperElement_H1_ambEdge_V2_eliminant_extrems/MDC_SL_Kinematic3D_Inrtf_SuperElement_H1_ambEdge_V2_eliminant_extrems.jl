@@ -87,14 +87,9 @@ CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 # Acotem les triangulacions de les interficies
 
 # Totes juntes
-Γ₉ = BoundaryTriangulation(model,tags=["tag_23","tag_26","tag_24","tag_25"])
-
-# Cada una de les cares
-Γ₀ = BoundaryTriangulation(model,tags=["tag_23"])
-Γ₁ = BoundaryTriangulation(model,tags=["tag_26"])
-Γ₂ = BoundaryTriangulation(model,tags=["tag_24"])
-Γ₃ = BoundaryTriangulation(model,tags=["tag_25"])
-
+edge_tags = ["tag_17","tag_18","tag_19","tag_20"]
+face_tags = ["tag_23","tag_26","tag_24","tag_25"]
+Γ₉ = BoundaryTriangulation(model,tags=face_tags)
 
 #--------------------------------------------------
 # Definim els models 1x1 fine i coarse del conjunt de les interficies
@@ -131,7 +126,8 @@ axis_id₃ = 1; face_pos₃ = minimum(lazy_map(c->c[axis_id₃],int_coords))
 
 # Definim el model global 1x1 i la glue corresponent de totes les interficies
 
-Γ = [Γ₀,Γ₁,Γ₂,Γ₃]
+Γ = map(face_tag->BoundaryTriangulation(model,tags=[face_tag]),face_tags)
+
 axis_id = [axis_id₀, axis_id₁, axis_id₂,axis_id₃]
 axis_int_coord = [face_pos₀,face_pos₁,face_pos₂,face_pos₃]
 inv_list = [false,false,true,true]
@@ -184,22 +180,56 @@ glue = AdaptivityGlue([Int[],Int[],global_n2o_faces],global_child_ids,global_rru
 cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true,false))
 Γc  = Triangulation(cface_model)
 Γf  = Gridap.Adaptivity.GluedTriangulation(Γ₉,Γc,glue)
-Ψf  = EdgeTriangulation(Γf,["tag_17","tag_18","tag_19","tag_20"])
+Ψf  = EdgeTriangulation(Γf,edge_tags)
 
-# Definim 
+# Definim interfaces
 
-Γ₀_glue = Gridap.Adaptivity.GluedTriangulation(Γ₀,Γc,partial_glues[1])
-Γ₁_glue = Gridap.Adaptivity.GluedTriangulation(Γ₁,Γc,partial_glues[2])
-Γ₂_glue = Gridap.Adaptivity.GluedTriangulation(Γ₂,Γc,partial_glues[3])
-Γ₃_glue = Gridap.Adaptivity.GluedTriangulation(Γ₃,Γc,partial_glues[4])
+function filter_edges(model,edge_tags,face_tag)
+  labeling = get_face_labeling(model)
+  edges = findall(get_face_mask(labeling,edge_tags,1))
+  faces = findall(get_face_mask(labeling,face_tag,2))
 
-intrf₀  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₀, Γ₀_glue, CTf_2D[1], degree)
+  topo = get_grid_topology(model)
+  f2e_map = Geometry.get_faces(topo,2,1)
 
-intrf₁  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₁, Γ₁_glue, CTf_2D[1], degree)
+  function face_filter(face::Integer) :: Bool
+    face_edges = f2e_map[face]
+    return !any(map(e -> e ∈ edges,face_edges))
+  end
 
-intrf₂  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₂, Γ₂_glue, CTf_2D[1], degree)
+  return filter(face_filter,faces)
+end
 
-intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₃, Γ₃_glue, CTf_2D[1], degree)
+boundary_faces = map(face_tag -> filter_edges(model,edge_tags,[face_tag]), face_tags)
+Γ = map(faces->BoundaryTriangulation(model,faces),boundary_faces)
+
+global partial_glues = AdaptivityGlue[]
+global totalColumns = 1
+global n_refs = 0 # Divisio vertical
+for iintrf in eachindex(Γ)
+  n2o_faces, child_ids, o2n_faces = get_comp_glue_without_corners(Γ[iintrf], int_coords, axis_id[iintrf], axis_int_coord[iintrf], inv_list[iintrf])
+  n_coarse = length(o2n_faces)
+  global n_refs = length(o2n_faces[1])
+
+  n2o_faces[3] .+= totalColumns
+
+  ref_grid_domain = (!inv_list[iintrf]) ? (0,1,0,1) : (1,0,0,1)
+  ref_grid = Geometry.UnstructuredDiscreteModel(CartesianDiscreteModel(ref_grid_domain,(1,n_refs)))
+  rr = Adaptivity.RefinementRule(Adaptivity.GenericRefinement(),QUAD,ref_grid)
+  rrules = Fill(rr,n_coarse)
+  glue = AdaptivityGlue(n2o_faces,child_ids,rrules) # From coarse to fine
+  push!(partial_glues, glue)
+  global totalColumns += n_coarse + 2
+end
+global totalColumns -= 1
+
+pglues = [partial_glues[1],partial_glues[2],partial_glues[3],partial_glues[4]]
+Γ_glue = map(pair -> Gridap.Adaptivity.GluedTriangulation(pair[1],Γc,pair[2]), zip(Γ,pglues))
+
+intrf₀  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ_glue[1], CTf_2D[1], degree)
+intrf₁  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ_glue[2], CTf_2D[1], degree)
+intrf₂  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ_glue[3], CTf_2D[1], degree)
+intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ_glue[4], CTf_2D[1], degree)
 
 
 #--------------------------------------------------
@@ -274,7 +304,6 @@ fun_ue(Point(0.0))
 ue_c = π_Λe_Γc(fun_ue,Γc)
 
 
-
 struct InterfaceProblem
   Ω  ::Triangulation
   Γf ::Triangulation
@@ -302,21 +331,28 @@ function func(problem::InterfaceProblem,u,v,λ,μ)
   return contr
 end
 
-function get_plus_component(x::Gridap.Fields.MatrixBlock)
-  array = Matrix{Matrix{Float64}}(undef,size(x))
+_get_plus(x::Gridap.Fields.MatrixBlock) = x.array[1,1]
+_get_plus(x::Gridap.Fields.VectorBlock) = x.array[1]
+_get_minus(x::Gridap.Fields.MatrixBlock) = x.array[2,2]
+_get_minus(x::Gridap.Fields.VectorBlock) = x.array[2]
+
+function get_plus_component(x::Gridap.Fields.ArrayBlock)
+  T = eltype(eltype(x))
+  array = Array{T}(undef,size(x))
   for i in eachindex(x.touched)
     if x.touched[i]
-      array[i] = x.array[i].array[1,1]
+      array[i] = _get_plus(x.array[i])
     end
   end
   return Gridap.Fields.ArrayBlock(array,x.touched)
 end
 
-function get_minus_component(x::Gridap.Fields.MatrixBlock)
-  array = Matrix{Matrix{Float64}}(undef,size(x))
+function get_minus_component(x::Gridap.Fields.ArrayBlock)
+  T = eltype(eltype(x))
+  array = Array{T}(undef,size(x))
   for i in eachindex(x.touched)
     if x.touched[i]
-      array[i] = x.array[i].array[2,2]
+      array[i] = _get_minus(x.array[i])
     end
   end
   return Gridap.Fields.ArrayBlock(array,x.touched)
@@ -388,7 +424,7 @@ a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) +
 
 A = assemble_matrix(a,U,V)
 
-line = A.m-2
+line = A.m-12
 for i in 1:7904
   if abs( A[line,i] ) > 0.0
     println( i,"   ",A[line,i] )
@@ -420,9 +456,6 @@ b[(Uu.nfree+1):end]
 b[end-2:end]
 b[end-11:end-9]
 
-v,μ = get_fe_basis(V);
-
-
 #--------------------------------------------------
 # Multiplicadors
 
@@ -433,9 +466,8 @@ ls = LUSolver()
 solver = LinearFESolver(ls)
 
 xh = solve(op);
-uh, λh, αh = xh;
+uh, λh = xh;
 
-println(get_free_dof_values(αh)[1])
 for i in 1:3:(3*partition[1]+1)
   println(get_free_dof_values(λh)[i])
 end
@@ -452,3 +484,6 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>uh,
                      "ε"=>∂(uh),
                      "σ"=>σ(CTf[1],∂(uh))])
+
+writevtk(Γf,"models/"*prblName*"/"*prblName,
+         cellfields=["λ"=>λh])
