@@ -1,6 +1,7 @@
 module modSubroutines
   export get_tags, get_E_CellField, ctˣ, step_field, EdgeTriangulation
 
+  using Gridap.Helpers
   using Gridap.Geometry
   using Gridap.Arrays
   using Gridap.Fields
@@ -70,6 +71,35 @@ module modSubroutines
     trian = BodyFittedTriangulation(model,face_grid,face_to_bgface)
 
     BoundaryTriangulation(trian,glue)
+  end
+
+  function EdgeTriangulation(Γ::Triangulation{Dc,Dp},tags) where {Dc,Dp}
+    model = get_background_model(Γ)
+    labeling = get_face_labeling(model)
+    face_to_mask = get_face_mask(labeling,tags,Dc-1)
+    face_to_bgface = findall(face_to_mask)
+    return EdgeTriangulation(Γ,face_to_bgface)
+  end
+
+  function EdgeTriangulation(
+    Γ::Triangulation{Dc,Dp},
+    face_to_bgface::AbstractVector{<:Integer}) where {Dc,Dp}
+    @check Dc == Dp-1
+    
+    Λ  = SkeletonTriangulation(Γ)
+    glue = get_glue(Λ,Val(Dc)) # glue from the edges to the attached faces
+    
+    model = get_background_model(Γ)
+    topo = get_grid_topology(model)
+    edge_to_face_map = Geometry.get_faces(topo,Dc-1,Dc) # edge to face connectivity
+    
+    # Find local numbering of the edges we want
+    face_pairs = map(p -> [p...],zip(glue.plus.tface_to_mface,glue.minus.tface_to_mface))
+    local_edge_ids = map(face_to_bgface) do edge
+      edge_faces = edge_to_face_map[edge]
+      return findfirst(faces -> faces == edge_faces, face_pairs)
+    end
+    return view(Λ,local_edge_ids)
   end
 
 end
