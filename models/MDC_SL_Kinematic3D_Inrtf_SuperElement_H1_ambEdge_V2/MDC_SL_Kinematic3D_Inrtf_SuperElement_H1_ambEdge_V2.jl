@@ -95,11 +95,6 @@ CTf_2D = get_CT_CellField(modlType_2D, CTs_2D, tags, Ω)
 Γ₂ = BoundaryTriangulation(model,tags=["tag_24"])
 Γ₃ = BoundaryTriangulation(model,tags=["tag_25"])
 
-# Model lineal al llarg de lespessor
-Ψ₀ = EdgeTriangulation(model,["tag_17"])
-Ψ₁ = EdgeTriangulation(model,["tag_18"])
-Ψ₂ = EdgeTriangulation(model,["tag_20"])
-Ψ₃ = EdgeTriangulation(model,["tag_19"])
 
 #--------------------------------------------------
 # Definim els models 1x1 fine i coarse del conjunt de les interficies
@@ -189,6 +184,7 @@ glue = AdaptivityGlue([Int[],Int[],global_n2o_faces],global_child_ids,global_rru
 cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true,false))
 Γc  = Triangulation(cface_model)
 Γf  = Gridap.Adaptivity.GluedTriangulation(Γ₉,Γc,glue)
+Ψf  = EdgeTriangulation(Γf,["tag_17","tag_18","tag_19","tag_20"])
 
 # Definim 
 
@@ -222,29 +218,7 @@ Vλ = FESpace(Γc,reffe)
 #Vλ = FESpace(Γc,reffe;conformity=:L2)
 Uλ = TrialFESpace(Vλ)
 
-# Definim l'espai de l'edge
-#reffe_Ψ = ReferenceFE(lagrangian,VectorValue{dofs,Float64},0)
-#VΨ = TestFESpace(Ψ,reffe_Ψ;conformity=:L2)
-
-#reffe_Ψ = ReferenceFE(lagrangian,VectorValue{3,Float64},order)
-#VΨ = TestFESpace(Ψ,reffe_Ψ;conformity=:H1)
-#UΨ = TrialFESpace(VΨ)
-
-VΨ₀ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-UΨ₀ = TrialFESpace(VΨ₀)
-VΨ₁ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-UΨ₁ = TrialFESpace(VΨ₁)
-#VΨ₂ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-#UΨ₂ = TrialFESpace(VΨ₂)
-#VΨ₃ = ConstantFESpace(model,field_type=VectorValue{dofs,Float64})
-#UΨ₃ = TrialFESpace(VΨ₃)
-
-
-
-
 # Ajuntem els dos espais anteriors
-#V = MultiFieldFESpace([Vu,Vλ,VΨ₀,VΨ₁,VΨ₂,VΨ₃])
-#U = MultiFieldFESpace([Uu,Uλ,UΨ₀,UΨ₁,UΨ₂,UΨ₃])
 V = MultiFieldFESpace([Vu,Vλ])
 U = MultiFieldFESpace([Uu,Uλ])
 
@@ -302,14 +276,17 @@ ue_c = π_Λe_Γc(fun_ue,Γc)
 
 
 struct InterfaceProblem
-  Ω::Triangulation
-  Γf::Triangulation
-  Γc::Triangulation
-  Λ::Triangulation
+  Ω  ::Triangulation
+  Γf ::Triangulation
+  Γc ::Triangulation
+  Λ  ::Triangulation
+  Ψ  ::Triangulation
+  dΨ ::Measure
   intrf :: Vector{Intrf_Kinematic3DV2}
 end
 
-prob = InterfaceProblem(Ω, Γf, Γc, Λf, [intrf₀, intrf₁, intrf₂, intrf₃])
+dΨ = Measure(Ψf,degree)
+prob = InterfaceProblem(Ω, Γf, Γc, Λf, Ψf, dΨ, [intrf₀, intrf₁, intrf₂, intrf₃])
 
 function func(problem::InterfaceProblem,u,v,λ,μ)
 
@@ -320,23 +297,92 @@ function func(problem::InterfaceProblem,u,v,λ,μ)
   for intrf in problem.intrf
     dΓfi = intrf.dΓi
     ci = ∫( (λ_f⋅v) + (μ_f⋅u) )*dΓfi
-    println(map(c->count(abs.(c[2,1]) .> tol),get_array(ci)))
     contr += ci
   end
   return contr
 end
 
-dΨ₀ = Measure(Ψ₀,degree)
-dΨ₁ = Measure(Ψ₁,degree)
-dΨ₂ = Measure(Ψ₂,degree)
-dΨ₃ = Measure(Ψ₃,degree)
+function get_plus_component(x::Gridap.Fields.MatrixBlock)
+  array = Matrix{Matrix{Float64}}(undef,size(x))
+  for i in eachindex(x.touched)
+    if x.touched[i]
+      array[i] = x.array[i].array[1,1]
+    end
+  end
+  return Gridap.Fields.ArrayBlock(array,x.touched)
+end
+
+function get_minus_component(x::Gridap.Fields.MatrixBlock)
+  array = Matrix{Matrix{Float64}}(undef,size(x))
+  for i in eachindex(x.touched)
+    if x.touched[i]
+      array[i] = x.array[i].array[2,2]
+    end
+  end
+  return Gridap.Fields.ArrayBlock(array,x.touched)
+end
+
+function FESpaces.get_cell_fe_data(fun,f,ttrian::Geometry.TriangulationView{Dc,Dp,<:Adaptivity.GluedTriangulation}) where {Dc,Dp}
+  fe_data = FESpaces.get_cell_fe_data(fun,f,ttrian.parent)
+  return lazy_map(Reindex(fe_data),ttrian.cell_to_parent_cell)
+end
+
+function func_edge(problem::InterfaceProblem,u,v,λ,μ)
+  Γf = problem.Γf
+  λ_f = change_domain(λ,Γf,ReferenceDomain())
+  μ_f = change_domain(μ,Γf,ReferenceDomain())
+
+  dΨ = problem.dΨ
+  Ψ  = problem.Ψ
+  arr = get_array(∫( mean((λ_f⋅v) + (μ_f⋅u)) )*dΨ)
+
+  skeleton_glue  = get_glue(Ψ.parent.dtrian,Val(2))
+  minus_Γf_faces = skeleton_glue.minus.tface_to_mface[Ψ.cell_to_parent_cell]
+  plus_Γf_faces  = skeleton_glue.plus.tface_to_mface[Ψ.cell_to_parent_cell]
+
+  Γf_plus   = Geometry.TriangulationView(Γf,plus_Γf_faces)
+  Γf_minus  = Geometry.TriangulationView(Γf,minus_Γf_faces)
+  arr_plus  = lazy_map(get_plus_component,arr)
+  arr_minus = lazy_map(get_minus_component,arr)
+
+  contr = DomainContribution()
+  CellData.add_contribution!(contr,Γf_plus,arr_plus)
+  CellData.add_contribution!(contr,Γf_minus,arr_minus)
+
+  return contr
+end
+
+function func_edge_vector(problem::InterfaceProblem,v,μ,ue_c)
+  Γf = problem.Γf
+  cf = μ⋅ue_c
+  cf_f = change_domain(cf,Γf,ReferenceDomain())
+
+  dΨ = problem.dΨ
+  Ψ  = problem.Ψ
+  arr = get_array(∫( mean(cf_f) )*dΨ)
+
+  skeleton_glue  = get_glue(Ψ.parent.dtrian,Val(2))
+  minus_Γf_faces = skeleton_glue.minus.tface_to_mface[Ψ.cell_to_parent_cell]
+  plus_Γf_faces  = skeleton_glue.plus.tface_to_mface[Ψ.cell_to_parent_cell]
+
+  Γf_plus   = Geometry.TriangulationView(Γf,plus_Γf_faces)
+  Γf_minus  = Geometry.TriangulationView(Γf,minus_Γf_faces)
+  arr_plus  = lazy_map(get_plus_component,arr)
+  arr_minus = lazy_map(get_minus_component,arr)
+
+  contr = DomainContribution()
+  CellData.add_contribution!(contr,Γf_plus,arr_plus)
+  CellData.add_contribution!(contr,Γf_minus,arr_minus)
+
+  return contr
+end
 
 
 aΩ((u,λ),(v,μ)) = ∫( ∂(v)⊙σ(CTf[1],∂(u)) )*dΩ
 aΓ((u,λ),(v,μ)) = func(prob,u,v,λ,μ)
-aΨ((u,λ),(v,μ)) = ∫( (λ⋅v) + (μ⋅u) )*dΨ₀ + ∫( (λ⋅v) + (μ⋅u) )*dΨ₁
+aΨ((u,λ),(v,μ)) = func_edge(prob,u,v,λ,μ)
 
- a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) + 
+a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) + 
                    aΓ((u,λ),(v,μ)) + 
                    aΨ((u,λ),(v,μ))                                       
 
@@ -366,16 +412,21 @@ g₃ = VectorValue(0.0,0.0,0.0)
 dΓf = Measure(Γf, degree)
 l((v,μ)) = ∫(v⋅f)*dΩ + 
            ∫(μ⋅ue_c)*dΓf + 
-           ∫(μ⋅g₀)*dΨ₀ + ∫(μ⋅g₁)*dΨ₁
-
-
-
+           func_edge_vector(prob,v,μ,ue_c)
              
 b = assemble_vector(l,V)
 
 b[(Uu.nfree+1):end]
 b[end-2:end]
 b[end-11:end-9]
+
+v,μ = get_fe_basis(V);
+
+cf = μ⋅ue_c
+cf_f = mean(change_domain(cf,Γf,ReferenceDomain()))
+
+pts = get_cell_points(dΨ)
+cf_f(pts)
 
 #--------------------------------------------------
 # Multiplicadors
