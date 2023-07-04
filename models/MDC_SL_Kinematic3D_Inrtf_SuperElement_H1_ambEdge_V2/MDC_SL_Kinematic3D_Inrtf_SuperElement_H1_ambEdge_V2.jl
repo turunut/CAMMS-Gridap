@@ -11,6 +11,7 @@ using modCT
 using modModel
 using modSubroutines
 using modInterface
+using GridapPardiso
 
 using GridapGmsh
 
@@ -193,13 +194,10 @@ cface_model = CartesianDiscreteModel((0,1,0,1),(totalColumns,1),isperiodic=(true
 Γ₂_glue = Gridap.Adaptivity.GluedTriangulation(Γ₂,Γc,partial_glues[3])
 Γ₃_glue = Gridap.Adaptivity.GluedTriangulation(Γ₃,Γc,partial_glues[4])
 
-intrf₀  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₀, Γ₀_glue, CTf_2D[1], degree)
-
-intrf₁  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₁, Γ₁_glue, CTf_2D[1], degree)
-
-intrf₂  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₂, Γ₂_glue, CTf_2D[1], degree)
-
-intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψ₃, Γ₃_glue, CTf_2D[1], degree)
+intrf₀  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ₀_glue, CTf_2D[1], degree)
+intrf₁  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ₁_glue, CTf_2D[1], degree)
+intrf₂  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ₂_glue, CTf_2D[1], degree)
+intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ₃_glue, CTf_2D[1], degree)
 
 
 #--------------------------------------------------
@@ -302,21 +300,48 @@ function func(problem::InterfaceProblem,u,v,λ,μ)
   return contr
 end
 
-function get_plus_component(x::Gridap.Fields.MatrixBlock)
-  array = Matrix{Matrix{Float64}}(undef,size(x))
+#function get_plus_component(x::Gridap.Fields.MatrixBlock)
+#  array = Matrix{Matrix{Float64}}(undef,size(x))
+#  for i in eachindex(x.touched)
+#    if x.touched[i]
+#      array[i] = x.array[i].array[1,1]
+#    end
+#  end
+#  return Gridap.Fields.ArrayBlock(array,x.touched)
+#end
+#
+#function get_minus_component(x::Gridap.Fields.MatrixBlock)
+#  array = Matrix{Matrix{Float64}}(undef,size(x))
+#  for i in eachindex(x.touched)
+#    if x.touched[i]
+#      array[i] = x.array[i].array[2,2]
+#    end
+#  end
+#  return Gridap.Fields.ArrayBlock(array,x.touched)
+#end
+
+_get_plus(x::Gridap.Fields.MatrixBlock) = x.array[1,1]
+_get_plus(x::Gridap.Fields.VectorBlock) = x.array[1]
+_get_minus(x::Gridap.Fields.MatrixBlock) = x.array[2,2]
+_get_minus(x::Gridap.Fields.VectorBlock) = x.array[2]
+
+function get_plus_component(x::Gridap.Fields.ArrayBlock)
+  T = eltype(eltype(x))
+  array = Array{T}(undef,size(x))
   for i in eachindex(x.touched)
     if x.touched[i]
-      array[i] = x.array[i].array[1,1]
+      array[i] = _get_plus(x.array[i])
     end
   end
   return Gridap.Fields.ArrayBlock(array,x.touched)
 end
 
-function get_minus_component(x::Gridap.Fields.MatrixBlock)
-  array = Matrix{Matrix{Float64}}(undef,size(x))
+function get_minus_component(x::Gridap.Fields.ArrayBlock)
+  T = eltype(eltype(x))
+  array = Array{T}(undef,size(x))
   for i in eachindex(x.touched)
     if x.touched[i]
-      array[i] = x.array[i].array[2,2]
+      array[i] = _get_minus(x.array[i])
     end
   end
   return Gridap.Fields.ArrayBlock(array,x.touched)
@@ -388,12 +413,12 @@ a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) +
 
 A = assemble_matrix(a,U,V)
 
-line = A.m-2
-for i in 1:7904
-  if abs( A[line,i] ) > 0.0
-    println( i,"   ",A[line,i] )
-  end
-end
+#line = A.m-2
+#for i in 1:7904
+#  if abs( A[line,i] ) > 0.0
+#    println( i,"   ",A[line,i] )
+#  end
+#end
 
 f = VectorValue(0.0,0.0,0.0)
 g₀ = VectorValue(1.0,0.0,0.0)
@@ -429,11 +454,11 @@ v,μ = get_fe_basis(V);
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
 
-ls = LUSolver()
+ls = PardisoSolver()
 solver = LinearFESolver(ls)
 
-xh = solve(op);
-uh, λh, αh = xh;
+xh = solve(solver,op);
+uh, λh = xh;
 
 println(get_free_dof_values(αh)[1])
 for i in 1:3:(3*partition[1]+1)

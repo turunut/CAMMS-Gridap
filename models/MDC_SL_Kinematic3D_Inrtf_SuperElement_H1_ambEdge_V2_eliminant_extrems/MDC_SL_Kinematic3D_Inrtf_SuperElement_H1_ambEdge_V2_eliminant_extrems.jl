@@ -11,12 +11,13 @@ using modCT
 using modModel
 using modSubroutines
 using modInterface
+using GridapPardiso
 
 using GridapGmsh
 
 using FillArrays
 
-prblName = "MDC_SL_Kinematic3D_Inrtf_SuperElement_H1_ambEdge_V2"
+prblName = "MDC_SL_Kinematic3D_Inrtf_SuperElement_H1_ambEdge_V2_eliminant_extrems"
 projFldr = pwd()
 
 order  = 2
@@ -235,7 +236,7 @@ intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψf, Γ_glue[4], CTf_2D[1], degree)
 #--------------------------------------------------
 # Definim els FE del model volumetric i dels multiplicadors de lagrange (un per cada columna delements) 
 # Definim el model 3D
-reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)#;space=:S)
+reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order;space=:S)
 
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
@@ -424,12 +425,12 @@ a((u,λ),(v,μ)) =  aΩ((u,λ),(v,μ)) +
 
 A = assemble_matrix(a,U,V)
 
-line = A.m-12
-for i in 1:7904
-  if abs( A[line,i] ) > 0.0
-    println( i,"   ",A[line,i] )
-  end
-end
+#line = A.m-12
+#for i in 1:7904
+#  if abs( A[line,i] ) > 0.0
+#    println( i,"   ",A[line,i] )
+#  end
+#end
 
 f = VectorValue(0.0,0.0,0.0)
 g₀ = VectorValue(1.0,0.0,0.0)
@@ -462,15 +463,15 @@ b[end-11:end-9]
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
 
-ls = LUSolver()
+ls = PardisoSolver()
 solver = LinearFESolver(ls)
 
-xh = solve(op);
+xh = solve(solver,op)
 uh, λh = xh;
 
-for i in 1:3:(3*partition[1]+1)
-  println(get_free_dof_values(λh)[i])
-end
+#for i in 1:3:(3*partition[1]+1)
+#  println(get_free_dof_values(λh)[i])
+#end
 
 #x = get_free_dof_values(xh)
 #xλ = Gridap.MultiField.restrict_to_field(U,x,2)

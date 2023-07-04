@@ -11,6 +11,7 @@ using modCT
 using modModel
 using modSubroutines
 using modInterface
+using GridapPardiso
 
 using GridapGmsh
 
@@ -26,7 +27,7 @@ degree = 2*order
 # Definim el model volumetric
 
 domain = (0,4,0,4,-0.5,0.5)
-partition = (8,8,4)
+partition = (32,32,4)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -207,7 +208,7 @@ intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψ, Γ₃_glue, CTf_2D[1], degree)
 #--------------------------------------------------
 # Definim els FE del model volumetric i dels multiplicadors de lagrange (un per cada columna delements) 
 # Definim el model 3D
-reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)#;space=:S)
+reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order;space=:S)
 
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
@@ -424,10 +425,13 @@ b[(Uu.nfree+1):end]
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
 
-ls = LUSolver()
+#ls = LUSolver()
+#solver = LinearFESolver(ls)
+
+ls = PardisoSolver()
 solver = LinearFESolver(ls)
 
-xh = solve(op);
+xh = solve(solver,op)
 uh, λh = xh;
 
 for i in 1:3:(3*partition[1]+1)
@@ -446,3 +450,5 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
          cellfields=["u"=>uh,
                      "ε"=>∂(uh),
                      "σ"=>σ(CTf[1],∂(uh))])
+
+#writevtk(Γf ,"models/"*prblName*"/"*prblName, cellfields=["λ"=>λh])

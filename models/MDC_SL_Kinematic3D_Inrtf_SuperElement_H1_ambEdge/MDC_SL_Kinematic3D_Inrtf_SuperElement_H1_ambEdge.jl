@@ -11,6 +11,7 @@ using modCT
 using modModel
 using modSubroutines
 using modInterface
+using GridapPardiso
 
 using GridapGmsh
 
@@ -26,7 +27,7 @@ degree = 2*order
 # Definim el model volumetric
 
 domain = (0,4,0,4,-0.5,0.5)
-partition = (8,8,4)
+partition = (32,32,4)
 model = CartesianDiscreteModel(domain,partition)
 
 writevtk(model,"models/"*prblName*"/model")
@@ -368,6 +369,8 @@ a((u,λ,α₀,α₁,α₂,α₃),(v,μ,β₀,β₁,β₂,β₃)) =  aΩ((u,λ,α
 
 #end
 
+
+
 #ui = change_domain(u,prob.intrf[1].Γi,ReferenceDomain())
 
 A = assemble_matrix(a,U,V)
@@ -408,21 +411,64 @@ b[(Uu.nfree+1):end]
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
 
-ls = LUSolver()
+#ls = LUSolver()
+#solver = LinearFESolver(ls)
+
+ls = PardisoSolver()
 solver = LinearFESolver(ls)
 
-xh = solve(op);
+xh = solve(solver,op)
+
+#xh = solve(op);
+
 uh, λh, αh = xh;
 
-println(get_free_dof_values(αh)[2])
+#println(get_free_dof_values(αh)[2])
+#
+#for i in 2:3:(3*partition[1])
+#  println(get_free_dof_values(λh)[i])
+#end
+#
+#for i in (24*3+2):3:(24*4)
+#  println(get_free_dof_values(λh)[i])
+#end
 
-for i in 2:3:(3*partition[1])
-  println(get_free_dof_values(λh)[i])
+
+
+# Projeccio de la funcio en el model linea al llarg de leix Y del model 2D coarse de les interfaces
+_add_y(x) = VectorValue(x[1], 0.0)
+function π_Γc_Λe(f::CellField, Λf::Triangulation)
+  _data = CellData.get_data(f)
+  _cellmap = Fill(Broadcasting(_add_y),length(_data))
+  data = lazy_map(∘,_data,_cellmap) # data = lazy_map(Broadcasting(∘),_data,_cellmap) 
+  return CellData.similar_cell_field(f,data,Λf,CellData.DomainStyle(f))
 end
 
-for i in (24*3+2):3:(24*4)
-  println(get_free_dof_values(λh)[i])
-end
+λh_Λf = π_Γc_Λe(λh,Λf)
+λh_Λc = Interpolable(λh_Λf)
+
+dΛc = Measure(Λc,degree)
+a_proj(u,v) = ∫(u⋅v)*dΛc
+l_proj(v) = ∫(v⋅λh_Λc)*dΛc
+op_proj = AffineFEOperator(a_proj,l_proj,UΛc,VΛc)
+λh_Λc_H1 = solve(op_proj)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #x = get_free_dof_values(xh)
 #xλ = Gridap.MultiField.restrict_to_field(U,x,2)
@@ -439,3 +485,6 @@ writevtk(Ω,"models/"*prblName*"/"*prblName,
 
 writevtk(Γf ,"models/"*prblName*"/"*prblName,
          cellfields=["λ"=>λh])
+
+writevtk(Λc ,"models/"*prblName*"/"*prblName,
+         cellfields=["λ"=>λh_Λc_H1])
