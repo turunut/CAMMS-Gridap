@@ -11,7 +11,7 @@ using modCT
 using modModel
 using modSubroutines
 using modInterface
-using GridapPardiso
+#using GridapPardiso
 
 using GridapGmsh
 
@@ -208,7 +208,7 @@ intrf₃  = Intrf_Kinematic3DV2(Ω, Γf, Ψ, Γ₃_glue, CTf_2D[1], degree)
 #--------------------------------------------------
 # Definim els FE del model volumetric i dels multiplicadors de lagrange (un per cada columna delements) 
 # Definim el model 3D
-reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order;space=:S)
+reffe_u  = ReferenceFE(lagrangian,VectorValue{3,Float64},order)#;space=:S)
 
 Vu = TestFESpace(model,reffe_u;conformity=:H1)
 Uu = TrialFESpace(Vu)
@@ -425,10 +425,8 @@ b[(Uu.nfree+1):end]
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
 
-#ls = LUSolver()
-#solver = LinearFESolver(ls)
-
-ls = PardisoSolver()
+ls = LUSolver()
+#ls = PardisoSolver()
 solver = LinearFESolver(ls)
 
 xh = solve(solver,op)

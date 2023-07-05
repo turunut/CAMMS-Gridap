@@ -11,7 +11,7 @@ using modCT
 using modModel
 using modSubroutines
 using modInterface
-using GridapPardiso
+#using GridapPardiso
 
 using GridapGmsh
 
@@ -454,16 +454,17 @@ v,μ = get_fe_basis(V);
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
 
-ls = PardisoSolver()
+ls = LUSolver()
+#ls = PardisoSolver()
 solver = LinearFESolver(ls)
 
 xh = solve(solver,op);
 uh, λh = xh;
 
-println(get_free_dof_values(αh)[1])
-for i in 1:3:(3*partition[1]+1)
-  println(get_free_dof_values(λh)[i])
-end
+#println(get_free_dof_values(αh)[1])
+#for i in 1:3:(3*partition[1]+1)
+#  println(get_free_dof_values(λh)[i])
+#end
 
 #x = get_free_dof_values(xh)
 #xλ = Gridap.MultiField.restrict_to_field(U,x,2)

@@ -11,7 +11,7 @@ using modCT
 using modModel
 using modSubroutines
 using modInterface
-using GridapPardiso
+#using GridapPardiso
 
 using GridapGmsh
 
@@ -411,10 +411,8 @@ b[(Uu.nfree+1):end]
 #op = AffineFEOperator(a,l,U,V)
 op = AffineFEOperator(U,V,A,b)
 
-#ls = LUSolver()
-#solver = LinearFESolver(ls)
-
-ls = PardisoSolver()
+ls = LUSolver()
+#ls = PardisoSolver()
 solver = LinearFESolver(ls)
 
 xh = solve(solver,op)
